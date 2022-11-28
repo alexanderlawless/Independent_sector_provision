@@ -139,26 +139,7 @@ theme_SU <-   function (base_size){
 theme_set(theme_SU())
 
 # Import data ----
-lsoa11_stp21 <- 
-  read_csv("LSOA(2011)_CCG(21)_STP(21).csv") %>% 
-  clean_names()
 
-inpatient_data <- 
-  read_csv("grouped_data_IP.csv") %>% 
-  clean_names() %>% 
-  left_join(lsoa11_stp21 %>% 
-              select(lsoa11cd,stp21nm, lad21nm), 
-            by = c("der_postcode_lsoa_2011_code" = "lsoa11cd")) 
-
-outpatient_data <- 
-  read_csv("grouped_data_OP.csv") %>% 
-  clean_names() %>% 
-  left_join(lsoa11_stp21 %>% 
-              select(lsoa11cd,stp21nm, lad21nm), 
-            by = c("der_postcode_lsoa_2011_code" = "lsoa11cd")) %>% 
-  rename(ethnic_group = ethnic_category)
-
-# Group and clean ----
 hrg_lookup <-
   tribble(
   ~hrg_3, ~procedure_desc, ~procedure_desc_short, ~procedure_group,
@@ -178,95 +159,8 @@ hrg_lookup <-
   'HN6', "Elbow Procedures for Non-Trauma",    "Elbow",               "Subchapter HN – Orthopaedic Non-Trauma Procedures"
   )
 
-inpatient_grouped <-
-  inpatient_data %>% 
-  group_by(der_activity_month, age_range, sex, ethnic_group, imd_decile,
-           der_provider_site_code, duration_elective_wait_range, hrg_3, provider_type_1, stp21nm, lad21nm) %>% 
-  summarise(n_spells = sum(spell_count),
-            n_individuals = sum(individual_count)
-            ) %>% 
-  ungroup() %>% 
-  mutate(speciality = case_when(str_sub(hrg_3,1,1) == "H" ~ "Orthopaedic",
-                                str_sub(hrg_3,1,1) == "B" ~ "Ophthalmology")) %>% 
-  drop_na(speciality) %>% 
-  mutate(type = case_when(provider_type_1 %in% c("Acute", 
-                                                 "Health & Care",
-                                                 "Mental Health") ~ "NHS",
-                          provider_type_1 %in% c("Independent Sector",
-                                                 "Non NHS")~ "Independent Sector")) %>% 
-  drop_na(type) %>% 
-  mutate(der_activity_month = 
-           as.Date(
-             paste0(str_sub(der_activity_month,1,4),
-                    "-",
-                    str_sub(der_activity_month,5,6),
-                    "-01"
-                    )
-             )
-         ) %>% 
-  left_join(hrg_lookup, by = "hrg_3")
 
-outpatient_grouped <-
-  outpatient_data %>% 
-  group_by(der_activity_month, age_range, sex, ethnic_group, imd_decile,
-           der_provider_site_code, appointment_wait_range, hrg_3, provider_type_1, stp21nm, lad21nm) %>% 
-  summarise(n_spells = sum(attendence_count),
-            n_individuals = sum(individual_count)
-            ) %>% 
-  ungroup() %>% 
-  mutate(speciality = case_when(str_sub(hrg_3,1,1) == "H" ~ "Orthopaedic",
-                                str_sub(hrg_3,1,1) == "B" ~ "Ophthalmology")) %>% 
-  drop_na(speciality) %>% 
-  mutate(type = case_when(provider_type_1 %in% c("Acute", 
-                                                 "Health & Care",
-                                                 "Mental Health") ~ "NHS",
-                          provider_type_1 %in% c("Independent Sector",
-                                                 "Non NHS")~ "Independent Sector")) %>% 
-  drop_na(type) %>% 
-  mutate(der_activity_month = 
-           as.Date(
-             paste0(str_sub(der_activity_month,1,4),
-                    "-",
-                    str_sub(der_activity_month,5,6),
-                    "-01")
-             )
-         ) %>% 
-  left_join(hrg_lookup, by = "hrg_3")
-
-
-# National trends ----
-national_data_IP <-
-  inpatient_grouped %>% 
-  group_by(der_activity_month, age_range, sex, ethnic_group, imd_decile,
-           duration_elective_wait_range, procedure_desc_short, type, speciality
-           ) %>% 
-  summarise(n_spells_IP = sum(n_spells)) %>% 
-  ungroup()
-
-national_data_OP <-
-  outpatient_grouped %>% 
-  group_by(der_activity_month, age_range, sex, ethnic_group, imd_decile,
-           appointment_wait_range, procedure_desc_short, type, speciality
-           ) %>% 
-  summarise(n_spells_OP = sum(n_spells)) %>% 
-  ungroup()
-
-national_data <-
-  national_data_IP %>%  # 1,973,563
-  full_join(national_data_OP, 
-            by = c("der_activity_month",
-                   "age_range",
-                   "sex",
-                   "ethnic_group",
-                   "imd_decile",
-                   "duration_elective_wait_range" = "appointment_wait_range",
-                   "procedure_desc_short",
-                   "type",
-                   "speciality"
-                   ))
-
-rm(national_data_IP,
-   national_data_OP)
+national_data <- read_csv("national_data.csv")
 
 # National trends by procedure
 national_data_procedure <-
@@ -275,7 +169,6 @@ national_data_procedure <-
   summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
             n_spells_OP = sum(n_spells_OP, na.rm = TRUE)) %>% 
   drop_na(procedure_desc_short)
-
 
 
 ```
@@ -354,9 +247,11 @@ Upon publication of our findings, the underlying code will be available on [Gith
 
 # Results
 
-## National trends {.tabset}
+## National trends 
 
-### All activity 
+### Volume {.tabset}
+
+#### All activity 
 ```{r}
 # Time series by speciality 
 national_data %>% 
@@ -366,7 +261,7 @@ national_data %>%
   group_by(der_activity_month, speciality) %>% 
   mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
   filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-07-01") %>%
+           der_activity_month < "2022-11-01") %>%
   
   ggplot(aes(x = der_activity_month, y = all_activity)) +
   geom_point(alpha = 0.4) +
@@ -399,7 +294,7 @@ In recent months, monthly orthopaedic activity counts have remained consistent w
 
 </div>
 
-### By sector 
+#### By sector 
 ```{r}
 # Time series by speciality and sector
 national_data %>% 
@@ -409,7 +304,7 @@ national_data %>%
   group_by(der_activity_month, type, speciality) %>% 
   mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
   filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-07-01") %>%
+           der_activity_month < "2022-11-01") %>%
   
   ggplot(aes(x = der_activity_month, y = all_activity)) +
   geom_point(alpha = 0.4) +
@@ -429,7 +324,6 @@ national_data %>%
 <div class = "row">
 <div class = "col-md-1">
 </div>
-  
 <div class = "col-md-10">
 
 National trends in ophthalmic and orthopaedic activity show vastly different post-pandemic recoveries. Orthopaedic activity in both NHS and independent sector settings have had consistent monthly volumes from early 2018 until the onset of the pandemic and have regained that consistency post-pandemic, albeit at slightly lower monthly rates; i.e. pre-pandemic levels have not yet been achieved. 
@@ -437,10 +331,8 @@ National trends in ophthalmic and orthopaedic activity show vastly different pos
 Post-pandemic ophthalmic activity is most notably changed in the independent sector, where activity has continued to grow, at a faster rate that in was before the pandemic. The rate of ophthalmic activity in NHS settings has plateaued since early 2021 at near pre-pandemic levels.
 
 </div>
-
 <div class = "col-md-1">
 </div>
-
 </div>
 
 ## {.unlisted .unnumbered}
@@ -456,7 +348,7 @@ national_data %>%
   pivot_longer(cols = c(-der_activity_month, -type, -speciality)) %>% 
   mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient", TRUE ~ "Outpatient")) %>% 
   filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-07-01") %>%
+           der_activity_month < "2022-11-01") %>%
   
   ggplot(aes(x = der_activity_month, y = value, colour = name, group = name)) +
   geom_point(alpha = 0.4) +
@@ -475,190 +367,7 @@ national_data %>%
 
 The predominant type of ophthalmic care varies by sector; in NHS settings, more than 2 in every 3 contacts are delivered via outpatient attendances, where as care in the independent sector is most often provided in the form of inpatients admissions. These differences are likely a function of the types of procedures considered suitable to outsource from the NHS to independent providers. 
 
-### Orthopaedic procedures {.tabset}
-
-#### Fixed scale
-```{r}
-national_data_procedure %>%  
-  filter(speciality == "Orthopaedic") %>% 
-  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
-  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-07-01") %>% 
-  
-  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
-  geom_smooth(method = "loess", span = 0.2) +
-  facet_wrap(~procedure_desc_short#, scales = "free"
-             ) +
-  scale_color_SU() +
-  scale_y_continuous(labels = comma) +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"),
-        legend.position = "bottom"
-        ) +
-  labs(x = "Month", y = "Activity", colour = "Sector",
-       title = "Trends in Orthopaedic activity by sector and procedure",
-       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
-```
-
-#### Free scale
-```{r}
-national_data_procedure %>%  
-  filter(speciality == "Orthopaedic") %>% 
-  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
-  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-07-01") %>% 
-  
-  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
-  geom_smooth(method = "loess", span = 0.2) +
-  facet_wrap(~procedure_desc_short, scales = "free") +
-  scale_color_SU() +
-  scale_y_continuous(labels = comma) +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"),
-        legend.position = "bottom"
-        ) +
-  labs(x = "Month", y = "Activity", colour = "Sector",
-       title = "Trends in Orthopaedic activity by sector and procedure",
-       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
-```
-
-## {.unlisted .unnumbered}
-
-The most commonly undertaken orthopaedic procedures appear to be done on hands, knees and feet. The impacts of the COVID-19 pandemic appear to have been felt equally across different procedures; all seeing significant reductions and most not fully recovering to pre-pandemic levels. Within orthopaedic care, the market share taken up by the independent sector is relatively stable; similarly, the make-up of that IS market share is not dominated by any single procedure type - the types of procedures performed by the independent sector has remained stable in the post-pandemic era.
-
-### Opthalmic procedures {.tabset}
-
-#### Fixed scale
-```{r}
-national_data_procedure %>%  
-  filter(speciality == "Ophthalmology") %>% 
-  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
-  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-07-01") %>% 
-  
-  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
-  geom_smooth(method = "loess", span = 0.2) +
-  facet_wrap(~procedure_desc_short#, scales = "free"
-             ) +
-  scale_color_SU() +
-  scale_y_continuous(labels = comma) +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"),
-        legend.position = c(0.7,0.1)
-        ) +
-  labs(x = "Month", y = "Activity", colour = "Sector",
-       title = "Trends in Ophthalmology activity by sector and procedure",
-       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
-
-```
-
-<div class = "row">
-<div class = "col-md-1">
-</div>
-  
-<div class = "col-md-10">
-
-If we view the trends in ophthalmic elective procedures over the last 5 years by procedure type on a fixed scale, we see Vitreous Retinal procedures are much more common than any others. Such 200,000 of these procedures are undertaken monthly at the national level. Rates were halved at the peak of the pandemic and have return to near pre-pandemic levels in recent months.
-
-</div>
-
-<div class = "col-md-1">
-</div>
-
-</div>
-
-#### Free scale
-```{r}
-national_data_procedure %>%  
-  filter(speciality == "Ophthalmology") %>% 
-  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
-  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-07-01") %>% 
-  
-  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
-  geom_smooth(method = "loess", span = 0.2) +
-  facet_wrap(~procedure_desc_short, scales = "free") +
-  scale_color_SU() +
-  scale_y_continuous(labels = comma) +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"),
-        legend.position = c(0.7,0.1)
-        ) +
-  labs(x = "Month", y = "Activity", colour = "Sector",
-       title = "Trends in Ophthalmology activity by sector and procedure",
-       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
-
-```
-
-<div class = "row">
-<div class = "col-md-1">
-</div>
-  
-<div class = "col-md-10">
-
-By viewing trends on variable scales, we see procedure-specific patterns more clearly. We note that Ocular Motility, Oculoplastics and Orbit and Lacrimal procedures have not returned to pre-pandmic levels and post-pandemic rates have plateaued. Rates in Cornea and Sclera procedures along with Glaucoma treatments have been trending upwards in NHS settings since early 2021. Is this a procedure type for which demand could be eased by increased provision in the independent sector?
-
-</div>
-
-<div class = "col-md-1">
-</div>
-
-</div>
-
-
-#### Selected procedures 
-```{r}
-# Cataract and Vitreous Retinal procedures
-national_data_procedure %>%  
-  filter(speciality == "Ophthalmology", 
-         procedure_desc_short %in% c("Cataract", 
-                                     "Vitreous Retinal")) %>% 
-  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
-  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-07-01") %>% 
-  
-  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
-  geom_smooth(method = "loess", span = 0.2) +
-  facet_wrap(~procedure_desc_short, scales = "free") +
-  scale_color_SU() +
-  scale_y_continuous(labels = comma) +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"),
-        legend.position = "bottom"
-        ) +
-  labs(x = "Month", y = "Activity", colour = "Sector",
-       title = "Trends in Ophthalmology activity by sector and procedure",
-       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
-
-
-```
-
-<div class = "row">
-<div class = "col-md-1">
-</div>
-  
-<div class = "col-md-10">
-
-Focusing on trends in provision of Vitreous Retinal procedures and Cataract surgeries, our primary observations are that:  
-
-* the provision of NHS-funded cataract procedures in the private sector has now overtaken that in NHS settings - data has been trending towards this throughout our data collection period but has overtaken only in recent months 
-* The independent sector's market share of vitreous retinal procedures has been gradually increasing and continues to do so since the pandemic - this is significant given the sizable market that vitreous retinal procedures represents. 
-
-</div>
-
-<div class = "col-md-1">
-</div>
-
-</div>
-
-## {.unlisted .unnumbered}
-
-### IS market share {.tabset}
+### Independent sector share {.tabset}
 
 #### Fixed scale 
 ```{r}
@@ -680,7 +389,8 @@ national_data %>%
                           str_detect(name, "OP") ~ "Outpatient",
                           TRUE ~ "All activity")) %>% 
   filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-07-01") %>% 
+           der_activity_month < "2022-11-01") %>% 
+  filter(name != "All activity") %>% 
   
   ggplot(aes(x = der_activity_month, y = prop, colour = name, group = name)) +
   geom_point(alpha = 0.4) +
@@ -718,8 +428,9 @@ national_data %>%
   mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient", 
                           str_detect(name, "OP") ~ "Outpatient",
                           TRUE ~ "All activity")) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-07-01") %>% 
+  filter(der_activity_month > "2018-01-01" & 
+           der_activity_month < "2022-11-01") %>% 
+  filter(name != "All activity") %>% 
   
   ggplot(aes(x = der_activity_month, y = prop, colour = name, group = name)) +
   geom_point(alpha = 0.4) +
@@ -746,13 +457,384 @@ The independent sector's market share of orthopaedic care is larger and more con
 
 In the above chart, the yellow 'All activity' line is the sum of the two care type proportions (inpatient % + outpatient % = all activity %).
 
+### Orthopaedic procedures 
+
+#### Volume {.tabset}
+
+##### Fixed scale
+```{r}
+national_data_procedure %>%  
+  filter(speciality == "Orthopaedic") %>% 
+  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
+  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  
+  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short#, scales = "free"
+             ) +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "bottom"
+        ) +
+  labs(x = "Month", y = "Activity", colour = "Sector",
+       title = "Trends in Orthopaedic activity by sector and procedure",
+       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
+```
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Chart text ... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+##### Free scale
+```{r}
+national_data_procedure %>%  
+  filter(speciality == "Orthopaedic") %>% 
+  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
+  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  
+  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "bottom"
+        ) +
+  labs(x = "Month", y = "Activity", colour = "Sector",
+       title = "Trends in Orthopaedic activity by sector and procedure",
+       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
+```
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Chart text ... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+## {.unlisted .unnumbered}
+
+The most commonly undertaken orthopaedic procedures appear to be done on hands, knees and feet. The impacts of the COVID-19 pandemic appear to have been felt equally across different procedures; all seeing significant reductions and most not fully recovering to pre-pandemic levels. Within orthopaedic care, the market share taken up by the independent sector is relatively stable; similarly, the make-up of that IS market share is not dominated by any single procedure type - the types of procedures performed by the independent sector has remained stable in the post-pandemic era.
+
+#### Independent sector share {.tabset}
+
+##### Fixed scale
+```{r}
+# Orthopaedics 
+national_data %>% 
+  filter(speciality == "Orthopaedic") %>% 
+  group_by(der_activity_month, type, procedure_desc_short) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE)) %>% 
+  pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>% 
+  pivot_wider(id_cols = c(der_activity_month,  procedure_desc_short,name), 
+              names_from = type,
+              values_from = value) %>% 
+  mutate(IS_prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`, na.rm = TRUE) * 100) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", TRUE ~ "Outpatient appointments")) %>% 
+  filter(der_activity_month > "2018-01-01" & der_activity_month < "2022-11-01") %>% 
+  drop_na(procedure_desc_short) %>% 
+  
+  ggplot(aes(x = der_activity_month, y = IS_prop, colour = name)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short#, scales = "free"
+  ) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "bottom") +
+  scale_color_SU() +
+  labs(x = "Month", y = "Independent sector market share (%)", colour = "Activity type", 
+       title = "Share of activity delivered by the independent sector: Orthopaedic",
+       subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
+```
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Chart text ... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+##### Free scale
+```{r}
+# Orthopaedics 
+national_data %>% 
+  filter(speciality == "Orthopaedic") %>% 
+  group_by(der_activity_month, type, procedure_desc_short) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE)) %>% 
+  pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>% 
+  pivot_wider(id_cols = c(der_activity_month,  procedure_desc_short,name), 
+              names_from = type,
+              values_from = value) %>% 
+  mutate(IS_prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`, na.rm = TRUE) * 100) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", TRUE ~ "Outpatient appointments")) %>% 
+  filter(der_activity_month > "2018-01-01" & der_activity_month < "2022-11-01") %>% 
+  drop_na(procedure_desc_short) %>% 
+  
+  ggplot(aes(x = der_activity_month, y = IS_prop, colour = name)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short, scales = "free") +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "bottom") +
+  scale_color_SU() +
+  labs(x = "Month", y = "Independent sector market share (%)", colour = "Activity type", 
+       title = "Share of activity delivered by the independent sector: Orthopaedic",
+       subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
+```
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Chart text ... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+## {.unlisted .unnumbered}
+
+Section text ...
+
+### Opthalmic procedures 
+
+#### Volume {.tabset}
+
+##### Fixed scale
+```{r}
+national_data_procedure %>%  
+  filter(speciality == "Ophthalmology") %>% 
+  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
+  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  
+  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short#, scales = "free"
+             ) +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = c(0.7,0.1)
+        ) +
+  labs(x = "Month", y = "Activity", colour = "Sector",
+       title = "Trends in Ophthalmology activity by sector and procedure",
+       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
+
+```
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+If we view the trends in ophthalmic elective procedures over the last 5 years by procedure type on a fixed scale, we see Vitreous Retinal procedures are much more common than any others. Such 200,000 of these procedures are undertaken monthly at the national level. Rates were halved at the peak of the pandemic and have return to near pre-pandemic levels in recent months.
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+##### Free scale
+```{r}
+national_data_procedure %>%  
+  filter(speciality == "Ophthalmology") %>% 
+  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
+  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  
+  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = c(0.7,0.1)
+        ) +
+  labs(x = "Month", y = "Activity", colour = "Sector",
+       title = "Trends in Ophthalmology activity by sector and procedure",
+       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
+
+```
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+By viewing trends on variable scales, we see procedure-specific patterns more clearly. We note that Ocular Motility, Oculoplastics and Orbit and Lacrimal procedures have not returned to pre-pandmic levels and post-pandemic rates have plateaued. Rates in Cornea and Sclera procedures along with Glaucoma treatments have been trending upwards in NHS settings since early 2021. Is this a procedure type for which demand could be eased by increased provision in the independent sector?
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+
+##### Selected procedures 
+```{r}
+# Cataract and Vitreous Retinal procedures
+national_data_procedure %>%  
+  filter(speciality == "Ophthalmology", 
+         procedure_desc_short %in% c("Cataract", 
+                                     "Vitreous Retinal")) %>% 
+  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
+  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  
+  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "bottom"
+        ) +
+  labs(x = "Month", y = "Activity", colour = "Sector",
+       title = "Trends in Ophthalmology activity by sector and procedure",
+       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
+
+
+```
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+Focusing on trends in provision of Vitreous Retinal procedures and Cataract surgeries, our primary observations are that:  
+
+* The provision of NHS-funded cataract procedures in the private sector has now overtaken that in NHS settings - data has been trending towards this throughout our data collection period but has overtaken only in recent months 
+* The independent sector's market share of vitreous retinal procedures has been gradually increasing and continues to do so since the pandemic - this is significant given the sizable market that vitreous retinal procedures represents. 
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+## {.unlisted .unnumbered}
+
+#### Independent sector share {.tabset}
+
+##### Fixed scale
+```{r}
+# IS proportion by speciality and activity type (IP/OP)
+national_data %>% 
+  filter(speciality == "Ophthalmology") %>% 
+  group_by(der_activity_month, type, procedure_desc_short) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE),
+            #all_activity = sum(n_spells_IP, n_spells_OP, na.rm = TRUE)
+            ) %>% 
+  pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>% 
+  pivot_wider(id_cols = c(der_activity_month,  procedure_desc_short,name), 
+              names_from = type,
+              values_from = value
+              ) %>% 
+  mutate(IS_prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`, na.rm = TRUE) * 100) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", TRUE ~ "Outpatient appointments")) %>% 
+  filter(der_activity_month > "2018-01-01" & der_activity_month < "2022-11-01") %>% 
+  drop_na(procedure_desc_short) %>% 
+  
+  ggplot(aes(x = der_activity_month, y = IS_prop, colour = name)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short#, scales = "free"
+             ) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = c(0.75,0.2)) +
+  scale_color_SU() +
+  labs(x = "Month", y = "Independent sector market share (%)", colour = "Activity type", 
+       title = "Share of activity delivered by the independent sector",
+       subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
+```
+
+##### Free scale
+```{r}
+# IS proportion by speciality and activity type (IP/OP)
+national_data %>% 
+  filter(speciality == "Ophthalmology") %>% 
+  group_by(der_activity_month, type, procedure_desc_short) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE),
+            #all_activity = sum(n_spells_IP, n_spells_OP, na.rm = TRUE)
+            ) %>% 
+  pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>% 
+  pivot_wider(id_cols = c(der_activity_month,  procedure_desc_short,name), 
+              names_from = type,
+              values_from = value
+              ) %>% 
+  mutate(IS_prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`, na.rm = TRUE) * 100) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", TRUE ~ "Outpatient appointments")) %>% 
+  filter(der_activity_month > "2018-01-01" & der_activity_month < "2022-11-01") %>% 
+  drop_na(procedure_desc_short) %>% 
+  
+  ggplot(aes(x = der_activity_month, y = IS_prop, colour = name)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short, scales = "free") +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = c(0.75,0.2)) +
+  scale_color_SU() +
+  labs(x = "Month", y = "Independent sector market share (%)", colour = "Activity type", 
+       title = "Share of activity delivered by the independent sector",
+       subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
+```
+
+
+## {.unlisted .unnumbered}
+
+
+
+
 
 <hr style="border-top: 2px solid #f9bf07">
 
 
-# Questions
+# Further discussion/Questions
 
-* Are there any specific procedures you'd like us to focus on or exclude? 
-* Are you happy with the primary measure being independent sector market proportion - or would you like to continue with visualising volume and share?
-* Should we now move on to considering trends by demographic and geography?
+* ...
 

@@ -118,7 +118,8 @@ inpatient_data <-
   clean_names() %>% 
   left_join(lsoa11_stp21 %>% 
               select(lsoa11cd,stp21nm, lad21nm), 
-            by = c("der_postcode_lsoa_2011_code" = "lsoa11cd")) 
+            by = c("der_postcode_lsoa_2011_code" = "lsoa11cd")) %>% 
+  mutate(sum_costs = as.numeric(sum_cost))
 
 outpatient_data <- 
   read_csv("grouped_data_OP.csv") %>% 
@@ -126,11 +127,11 @@ outpatient_data <-
   left_join(lsoa11_stp21 %>% 
               select(lsoa11cd,stp21nm, lad21nm), 
             by = c("der_postcode_lsoa_2011_code" = "lsoa11cd")) %>% 
-  rename(ethnic_group = ethnic_category)
+  rename(ethnic_group = ethnic_category) %>% 
+  mutate(sum_costs = as.numeric(sum_costs))
 
 
 # Group and clean ----
-
 hrg_lookup <-
   tribble(
   ~hrg_3, ~procedure_desc, ~procedure_desc_short, ~procedure_group,
@@ -154,12 +155,14 @@ hrg_lookup <-
 #  read_csv("HRG_22_23_lookup.csv") %>% 
 #  clean_names()
   
+
 inpatient_grouped <-
   inpatient_data %>% 
   group_by(der_activity_month, age_range, sex, ethnic_group, imd_decile,
            der_provider_site_code, duration_elective_wait_range, hrg_3, provider_type_1, stp21nm, lad21nm) %>% 
   summarise(n_spells = sum(spell_count),
-            n_individuals = sum(individual_count)
+            n_individuals = sum(individual_count),
+            sum_cost = sum(sum_costs)
             ) %>% 
   ungroup() %>% 
   mutate(speciality = case_when(str_sub(hrg_3,1,1) == "H" ~ "Orthopaedic",
@@ -202,7 +205,8 @@ outpatient_grouped <-
   group_by(der_activity_month, age_range, sex, ethnic_group, imd_decile,
            der_provider_site_code, appointment_wait_range, hrg_3, provider_type_1, stp21nm, lad21nm) %>% 
   summarise(n_spells = sum(attendence_count),
-            n_individuals = sum(individual_count)
+            n_individuals = sum(individual_count),
+            sum_cost = sum(sum_costs)
             ) %>% 
   ungroup() %>% 
   mutate(speciality = case_when(str_sub(hrg_3,1,1) == "H" ~ "Orthopaedic",
@@ -230,7 +234,8 @@ national_data_IP <-
   group_by(der_activity_month, age_range, sex, ethnic_group, imd_decile,
            duration_elective_wait_range, procedure_desc_short, type, speciality
            ) %>% 
-  summarise(n_spells_IP = sum(n_spells)) %>% 
+  summarise(n_spells_IP = sum(n_spells),
+            cost_IP = sum(sum_cost)) %>% 
   ungroup()
 
 national_data_OP <-
@@ -238,7 +243,8 @@ national_data_OP <-
   group_by(der_activity_month, age_range, sex, ethnic_group, imd_decile,
            appointment_wait_range, procedure_desc_short, type, speciality
            ) %>% 
-  summarise(n_spells_OP = sum(n_spells)) %>% 
+  summarise(n_spells_OP = sum(n_spells),
+            cost_OP = sum(sum_cost)) %>% 
   ungroup()
 
 national_data <-
@@ -257,6 +263,9 @@ national_data <-
 
 rm(national_data_IP,
    national_data_OP)
+
+#write_csv(national_data, "national_data.csv")
+
 
 # Time series by speciality 
 national_data %>% 
@@ -278,6 +287,33 @@ national_data %>%
         strip.text = element_text(face = "bold")
         ) +
   labs(x = "Month", y = "Admissions",
+       title = "Trends in activity by speciality",
+       subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
+
+# + cost trend
+national_data %>% 
+  group_by(der_activity_month, speciality) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE),
+            cost = sum(cost_IP, cost_OP, na.rm = TRUE)
+            ) %>%
+  group_by(der_activity_month, speciality) %>% 
+  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  select(-contains("n")) %>% 
+  pivot_longer(c("cost", "all_activity")) %>% 
+  
+  ggplot(aes(x = der_activity_month, y = value)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "loess", span = 0.2, colour = "#5881c1") +
+  facet_grid(name~speciality, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma, oob = squish) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold")
+        ) +
+  labs(x = "Month", y = "",
        title = "Trends in activity by speciality",
        subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
 
@@ -306,6 +342,7 @@ national_data %>%
        title = "Trends in activity by speciality and sector",
        subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
 
+
 # Activity by speciality, sector and setting
 national_data %>% 
   group_by(der_activity_month, type, speciality) %>% 
@@ -314,7 +351,7 @@ national_data %>%
   pivot_longer(cols = c(-der_activity_month, -type, -speciality)) %>% 
   mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient", TRUE ~ "Outpatient")) %>% 
   filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-07-01") %>%
+           der_activity_month < "2022-11-01") %>%
   
   ggplot(aes(x = der_activity_month, y = value, colour = name, group = name)) +
   geom_point(alpha = 0.4) +
@@ -327,15 +364,76 @@ national_data %>%
         legend.position = "bottom"
         ) +
   labs(x = "Month", y = "Admissions", colour = "Activity",
-       title = "Trends in admissions by speciality and sector",
-       subtitle = "Monthly elective inpatient admissions | National | 2017-22")
+       title = "Trends in activity by speciality and sector",
+       subtitle = "Monthly elective activity | National | 2017-22")
+
+
+# + Costs 
+# Ophthalmology
+national_data %>% 
+  group_by(der_activity_month, type, speciality) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE),
+            cost = sum(cost_IP, cost_OP, na.rm = TRUE)) %>% 
+  pivot_longer(cols = c(-der_activity_month, -type, -speciality)) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
+                          str_detect(name, "OP") ~ "Outpatient appointments",
+                          TRUE ~ "Cost (£)")) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>% 
+  filter(speciality == "Ophthalmology") %>% 
+  
+  ggplot(aes(x = der_activity_month, y = value, colour = name, group = name)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_grid(str_wrap(name,15) ~ type, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma, oob = squish) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "none"
+        ) +
+  labs(x = "Month", y = "", colour = "Activity",
+       title = "Trends in activity and cost by speciality and sector: Ophthalmology",
+       subtitle = "Monthly elective activity | National | 2018-22")
+
+
+# Orthopaedic
+national_data %>% 
+  group_by(der_activity_month, type, speciality) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE),
+            cost = sum(cost_IP, cost_OP, na.rm = TRUE)) %>% 
+  pivot_longer(cols = c(-der_activity_month, -type, -speciality)) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
+                          str_detect(name, "OP") ~ "Outpatient appointments",
+                          TRUE ~ "Cost (£)")) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>% 
+  filter(speciality == "Orthopaedic") %>% 
+  
+  ggplot(aes(x = der_activity_month, y = value, colour = name, group = name)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_grid(str_wrap(name,15) ~ type, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma, oob = squish) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "none"
+        ) +
+  labs(x = "Month", y = "", colour = "Activity",
+       title = "Trends in activity and cost by speciality and sector: Orthopaedic",
+       subtitle = "Monthly elective activity | National | 2018-22")
+
 
 # National trends by procedure
 national_data_procedure <-
   national_data %>% 
   group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
   summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
-            n_spells_OP = sum(n_spells_OP, na.rm = TRUE)) %>% 
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE),
+            cost = sum(cost_IP, cost_OP, na.rm = TRUE)) %>% 
   drop_na(procedure_desc_short)
 
 # Orthopaedic trends
@@ -400,7 +498,7 @@ national_data_procedure %>%
   scale_y_continuous(labels = comma) +
   theme(strip.background = element_rect(fill = NA, colour = "grey"),
         strip.text = element_text(face = "bold"),
-        #legend.position = c(0.7,0.1)
+        legend.position = "bottom"
         ) +
   labs(x = "Month", y = "Activity", colour = "Sector",
        title = "Trends in Ophthalmology activity by sector and procedure",
@@ -461,7 +559,8 @@ national_data %>%
                           str_detect(name, "OP") ~ "Outpatient",
                           TRUE ~ "All activity")) %>% 
   filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-07-01") %>% 
+           der_activity_month < "2022-11-01") %>%
+  filter(name != "All activity") %>% 
   
   ggplot(aes(x = der_activity_month, y = prop, colour = name, group = name)) +
   geom_point(alpha = 0.4) +
@@ -477,22 +576,72 @@ national_data %>%
   labs(x = "Month", y = "Independent sector market share (%)", colour = "Activity type", 
        title = "Share of activity delivered by the independent sector",
        subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
-    
 
 
-
-
-#
+# IS proportion by speciality and activity type (IP/OP)
+# Ophthalmology
 national_data %>% 
   filter(speciality == "Ophthalmology") %>% 
-  mutate(year = lubridate::year(der_activity_month)) %>% 
-  drop_na(procedure_desc_short) %>% 
-  group_by(year, procedure_desc_short) %>% 
+  group_by(der_activity_month, type, procedure_desc_short) %>% 
   summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
-            n_spells_OP = sum(n_spells_OP, na.rm = TRUE)
-            )
-    
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE),
+            #all_activity = sum(n_spells_IP, n_spells_OP, na.rm = TRUE)
+            ) %>% 
+  pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>% 
+  pivot_wider(id_cols = c(der_activity_month,  procedure_desc_short,name), 
+              names_from = type,
+              values_from = value
+              ) %>% 
+  mutate(IS_prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`, na.rm = TRUE) * 100) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", TRUE ~ "Outpatient appointments")) %>% 
+  filter(der_activity_month > "2018-01-01" & der_activity_month < "2022-11-01") %>% 
+  drop_na(procedure_desc_short) %>% 
+  
+  ggplot(aes(x = der_activity_month, y = IS_prop, colour = name)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short#, scales = "free"
+             ) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = c(0.75,0.2)) +
+  scale_color_SU() +
+  labs(x = "Month", y = "Independent sector market share (%)", colour = "Activity type", 
+       title = "Share of activity delivered by the independent sector: Ophthalmology",
+       subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
+ 
+# Orthopaedics 
+national_data %>% 
+  filter(speciality == "Orthopaedic") %>% 
+  group_by(der_activity_month, type, procedure_desc_short) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE)) %>% 
+  pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>% 
+  pivot_wider(id_cols = c(der_activity_month,  procedure_desc_short,name), 
+              names_from = type,
+              values_from = value) %>% 
+  mutate(IS_prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`, na.rm = TRUE) * 100) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", TRUE ~ "Outpatient appointments")) %>% 
+  filter(der_activity_month > "2018-01-01" & der_activity_month < "2022-11-01") %>% 
+  drop_na(procedure_desc_short) %>% 
+  
+  ggplot(aes(x = der_activity_month, y = IS_prop, colour = name)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short#, scales = "free"
+  ) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "bottom") +
+  scale_color_SU() +
+  labs(x = "Month", y = "Independent sector market share (%)", colour = "Activity type", 
+       title = "Share of activity delivered by the independent sector: Orthopaedic",
+       subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
 
+
+
+# Demographics ---- 
+
+national_data 
+  
 
 
 # Notes ----
