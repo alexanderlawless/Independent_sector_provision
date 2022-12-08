@@ -302,9 +302,6 @@ sum_spells_function <- function(data) {
 }
 
 
-
-
-
 ## Visualise national data ----
 # Time series by speciality 
 national_data %>% 
@@ -753,6 +750,7 @@ national_data_ortho %>%
   mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
   left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
   wrangle_function(., ethnicity_broad) %>% 
+  filter(var_1 != "Not stated_broad") %>% 
   graph_function(., "Orthopaedic") +
   facet_grid(~var_1, scales = "free")
 
@@ -761,6 +759,7 @@ national_data_ophthal %>%
   mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
   left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
   wrangle_function(., ethnicity_broad) %>% 
+  filter(var_1 != "Not stated_broad") %>% 
   graph_function(., "Ophthalmology") +
   facet_grid(~var_1, scales = "free")
 
@@ -835,7 +834,7 @@ national_data_ophthal %>%
                ) %>% 
   mutate(year = lubridate::year(der_activity_month)) %>% 
   group_by(year, var_1, name, sector) %>% 
-  summarise(value = sum(value)) %>% View
+  summarise(value = sum(value)) %>%
   
   ggplot(aes(x = var_1, y = value, fill = var_1)) +
   geom_col(position = "dodge", colour = "grey") +
@@ -880,311 +879,37 @@ national_data_ortho %>%
        title = "Change in wait time for treatment",
        subtitle = "Proportion of elective orthopaedic care contacts by wait time | National | 2018-22"
        )
+
+national_data_ophthal %>% 
+  wrangle_function(., duration_elective_wait_range) %>% 
+  filter(var_1 != "500+") %>% 
+  pivot_longer(cols = c(`Independent Sector`, NHS),
+               names_to = "sector",
+               values_to = "value"
+               ) %>% 
+  mutate(year = lubridate::year(der_activity_month)) %>% 
+  group_by(year, var_1, name, sector) %>% 
+  summarise(value = sum(value)) %>% 
+  group_by(year, name, sector) %>% 
+  mutate(prop = value/sum(value)*100) %>% 
+  
+  ggplot(aes(x = year, y = prop, fill = var_1)) +
+  geom_col(position = "stack", colour = "grey", alpha = 0.9, width = 0.7) +
+  facet_grid(name~sector) +
+  scale_fill_SU() +
+  theme(#legend.position = "none",
+    strip.background = element_rect(fill = NA, colour = "grey"),
+    strip.text = element_text(face = "bold")
+    ) +
+  labs(x = "Year", y = "Proportion (%)",
+       fill = "Wait duration (days)",
+       title = "Change in wait time for treatment",
+       subtitle = "Proportion of elective ophthalmology care contacts by wait time | National | 2018-22"
+  )
   
 
   
   
-  
-  
-  
-  
-  
-  
-## -------------  
-national_data_ortho %>%
-  group_by(der_activity_month, age_range, type) %>% 
-  sum_spells_function(.) %>% 
-  group_by(der_activity_month, type, age_range) %>% 
-  mutate(total_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  pivot_longer(cols = c(-der_activity_month, -type, -age_range)) %>% 
-  pivot_wider(id_cols = c(der_activity_month, age_range, name), 
-              names_from = type,
-              values_from = value
-              ) %>% 
-  mutate(`Independent Sector` = case_when(is.na(`Independent Sector`) ~ 0, TRUE ~ `Independent Sector`)) %>% 
-  group_by(der_activity_month, age_range, name) %>% 
-  mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
-  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
-                          str_detect(name, "OP") ~ "Outpatient appointments",
-                          str_detect(name, "cost") ~ "Costs",
-                          TRUE ~ "All activity")) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-11-01") %>%
-  filter(name != "All activity") %>% 
-  ungroup() %>% 
-  left_join(age_range_order, by = "age_range") %>% 
-  mutate(age_range = fct_reorder(age_range, age_order, .fun = max)) %>%
-  drop_na(age_range) %>%  
-  filter(age_range != "100+") %>% 
-  
-  ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
-  geom_smooth(method = "loess", span = 0.3) +
-  facet_grid(name~age_range, scales = "free_y") +
-  scale_color_SU() +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"), 
-        axis.text.x = element_text(angle = 90),
-        legend.position = "none"
-        ) +
-  labs(x = "Month", y = "Independent sector proportion (%)",
-       title = "Independent sector proportion of activity and costs by age range",
-       subtitle = "Orthopaedic elective procedures | National | 2018-22")
-
-
-# Ophthal
-national_data_ophthal %>%
-  group_by(der_activity_month, age_range, type) %>% 
-  sum_spells_function(.) %>% 
-  group_by(der_activity_month, type, age_range) %>% 
-  mutate(total_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  pivot_longer(cols = c(-der_activity_month, -type, -age_range)) %>% 
-  pivot_wider(id_cols = c(der_activity_month, age_range, name), 
-              names_from = type,
-              values_from = value
-              ) %>% 
-  mutate(`Independent Sector` = case_when(is.na(`Independent Sector`) ~ 0, TRUE ~ `Independent Sector`)) %>% 
-  group_by(der_activity_month, age_range, name) %>% 
-  mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
-  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
-                          str_detect(name, "OP") ~ "Outpatient appointments",
-                          str_detect(name, "cost") ~ "Costs",
-                          TRUE ~ "All activity")) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-11-01") %>%
-  filter(name != "All activity") %>% 
-  ungroup() %>% 
-  left_join(age_range_order, by = "age_range") %>% 
-  mutate(age_range = fct_reorder(age_range, age_order, .fun = max)) %>%
-  drop_na(age_range) %>%  
-  filter(age_range != "100+") %>% 
-  
-  ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
-  geom_smooth(method = "loess", span = 0.3) +
-  facet_grid(str_wrap(name, 15)~age_range, scales = "free_y") +
-  scale_color_SU() +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"), 
-        axis.text.x = element_text(angle = 90),
-        legend.position = "none"
-        ) +
-  labs(x = "Month", y = "Independent sector proportion (%)",
-       title = "Independent sector proportion of activity and costs by age range",
-       subtitle = "Ophthalmology elective procedures | National | 2018-22")
-  
-  
-# Deprivation 
-## Ortho  
-national_data_ortho %>%
-  group_by(der_activity_month, imd_decile, type) %>% 
-  sum_spells_function(.) %>% 
-  group_by(der_activity_month, type, imd_decile) %>% 
-  mutate(total_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  pivot_longer(cols = c(-der_activity_month, -type, -imd_decile)) %>% 
-  pivot_wider(id_cols = c(der_activity_month, imd_decile, name), 
-              names_from = type,
-              values_from = value
-              ) %>% 
-  mutate(`Independent Sector` = case_when(is.na(`Independent Sector`) ~ 0, TRUE ~ `Independent Sector`)) %>% 
-  group_by(der_activity_month, imd_decile, name) %>% 
-  mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
-  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
-                          str_detect(name, "OP") ~ "Outpatient appointments",
-                          str_detect(name, "cost") ~ "Costs",
-                          TRUE ~ "All activity")) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-11-01") %>%
-  filter(name != "All activity") %>% 
-  ungroup() %>% 
-  filter(name != "Costs") %>%
-  filter(imd_decile %in% c(1,5,10)) %>% 
-  
-  ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
-  geom_smooth(method = "loess", span = 0.3) +
-  #geom_hline(yintercept = 25) +
-  #geom_hline(yintercept = 8) +
-  facet_grid(~imd_decile, scales = "free_y") +
-  scale_color_SU() +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"), 
-       #axis.text.x = element_text(angle = 90),
-        legend.position = "bottom"
-        ) +
-  labs(x = "Month", y = "Independent sector proportion (%)",
-       colour = "",
-       title = "Independent sector proportion of activity and costs by deprivation decile",
-       subtitle = "Orthopaedic elective procedures | National | 2018-22")
-
-
-national_data_ortho %>%
-  group_by(der_activity_month, imd_decile, type) %>% 
-  sum_spells_function(.) %>% 
-  group_by(der_activity_month, type, imd_decile) %>% 
-  mutate(total_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  pivot_longer(cols = c(-der_activity_month, -type, -imd_decile)) %>% 
-  pivot_wider(id_cols = c(der_activity_month, imd_decile, name), 
-              names_from = type,
-              values_from = value
-              ) %>% 
-  mutate(`Independent Sector` = case_when(is.na(`Independent Sector`) ~ 0, TRUE ~ `Independent Sector`)) %>% 
-  group_by(der_activity_month, imd_decile, name) %>% 
-  mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
-  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
-                          str_detect(name, "OP") ~ "Outpatient appointments",
-                          str_detect(name, "cost") ~ "Costs",
-                          TRUE ~ "All activity")) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-11-01") %>%
-  filter(name != "All activity") %>% 
-  ungroup() %>% 
-  filter(name != "Costs") %>% 
-  mutate(imd_decile = as.character(imd_decile)) %>% 
-  filter(imd_decile %in% c(1,5,10)) %>% 
-  
-  ggplot(aes(x = der_activity_month, y = prop, colour = imd_decile, group = imd_decile)) +
-  geom_smooth(method = "loess", span = 0.3, se = FALSE) +
-  facet_grid(~name, scales = "free_y") +
-  scale_color_SU() +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"), 
-        axis.text.x = element_text(angle = 90),
-        legend.position = "bottom"
-        ) +
-  labs(x = "Month", y = "Independent sector proportion (%)",
-       colour = "",
-       title = "Independent sector proportion of activity and costs by deprivation decile",
-       subtitle = "Orthopaedic elective procedures | National | 2018-22")
-
-
-# Ophthal
-national_data_ophthal %>%
-  group_by(der_activity_month, imd_decile, type) %>% 
-  sum_spells_function(.) %>% 
-  group_by(der_activity_month, type, imd_decile) %>% 
-  mutate(total_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  pivot_longer(cols = c(-der_activity_month, -type, -imd_decile)) %>% 
-  pivot_wider(id_cols = c(der_activity_month, imd_decile, name), 
-              names_from = type,
-              values_from = value
-              ) %>% 
-  mutate(`Independent Sector` = case_when(is.na(`Independent Sector`) ~ 0, TRUE ~ `Independent Sector`)) %>% 
-  group_by(der_activity_month, imd_decile, name) %>% 
-  mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
-  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
-                          str_detect(name, "OP") ~ "Outpatient appointments",
-                          str_detect(name, "cost") ~ "Costs",
-                          TRUE ~ "All activity")) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-11-01") %>%
-  filter(name != "All activity") %>% 
-  ungroup() %>% 
-  filter(name != "Costs") %>% 
-  filter(imd_decile %in% c(1,5,10)) %>% 
-  
-  ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
-  geom_smooth(method = "loess", span = 0.3) +
-  facet_grid(~imd_decile, scales = "free_y") +
-  scale_color_SU() +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"), 
-        #axis.text.x = element_text(angle = 90),
-        legend.position = "bottom"
-        ) +
-  labs(x = "Month", y = "Independent sector proportion (%)",
-       colour = "",
-       title = "Independent sector proportion of activity and costs by deprivation decile",
-       subtitle = "Ophthalmology elective procedures | National | 2018-22")
-
-
-
-
-# Ethnicity 
-ethnicity_lookup <- read_csv("ethnicity_lookup.csv")
-
-national_data_ortho %>%
-  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
-  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
-  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
-  
-  group_by(der_activity_month, ethnicity_broad, type) %>% 
-  sum_spells_function(.) %>% 
-  group_by(der_activity_month, type, ethnicity_broad) %>% 
-  mutate(total_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  pivot_longer(cols = c(-der_activity_month, -type, -ethnicity_broad)) %>% 
-  pivot_wider(id_cols = c(der_activity_month, ethnicity_broad, name), 
-              names_from = type,
-              values_from = value
-              ) %>% 
-  mutate(`Independent Sector` = case_when(is.na(`Independent Sector`) ~ 0, TRUE ~ `Independent Sector`)) %>% 
-  group_by(der_activity_month, ethnicity_broad, name) %>% 
-  mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
-  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
-                          str_detect(name, "OP") ~ "Outpatient appointments",
-                          str_detect(name, "cost") ~ "Costs",
-                          TRUE ~ "All activity")) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-11-01") %>%
-  filter(name != "All activity") %>% 
-  ungroup() %>% 
-  filter(name != "Costs") %>%
-  filter(ethnicity_broad != "Not stated_broad") %>% 
-  
-  ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
-  geom_smooth(method = "loess", span = 0.3) +
-  facet_grid(~ethnicity_broad, scales = "free_y") +
-  scale_color_SU() +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"), 
-        #axis.text.x = element_text(angle = 90),
-        legend.position = "bottom"
-  ) +
-  labs(x = "Month", y = "Independent sector proportion (%)",
-       colour = "",
-       title = "Independent sector proportion of activity and costs by deprivation decile",
-       subtitle = "Orthopaedic elective procedures | National | 2018-22")
-
-# Opthal
-national_data_ophthal %>%
-  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
-  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
-  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
-  
-  group_by(der_activity_month, ethnicity_broad, type) %>% 
-  sum_spells_function(.) %>% 
-  group_by(der_activity_month, type, ethnicity_broad) %>% 
-  mutate(total_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  pivot_longer(cols = c(-der_activity_month, -type, -ethnicity_broad)) %>% 
-  pivot_wider(id_cols = c(der_activity_month, ethnicity_broad, name), 
-              names_from = type,
-              values_from = value
-  ) %>% 
-  mutate(`Independent Sector` = case_when(is.na(`Independent Sector`) ~ 0, TRUE ~ `Independent Sector`)) %>% 
-  group_by(der_activity_month, ethnicity_broad, name) %>% 
-  mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
-  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
-                          str_detect(name, "OP") ~ "Outpatient appointments",
-                          str_detect(name, "cost") ~ "Costs",
-                          TRUE ~ "All activity")) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-11-01") %>%
-  filter(name != "All activity") %>% 
-  ungroup() %>% 
-  filter(name != "Costs") %>%
-  filter(ethnicity_broad != "Not stated_broad") %>% 
-  
-  ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
-  geom_smooth(method = "loess", span = 0.3) +
-  facet_grid(~ethnicity_broad, scales = "free_y") +
-  scale_color_SU() +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"), 
-        #axis.text.x = element_text(angle = 90),
-        legend.position = "bottom"
-        ) +
-  labs(x = "Month", y = "Independent sector proportion (%)",
-       colour = "",
-       title = "Independent sector proportion of activity and costs by deprivation decile",
-       subtitle = "Ophthalmology elective procedures | National | 2018-22")
-
 
 
 # Ethnicity and deprivation 
@@ -1193,94 +918,6 @@ national_data_ortho %>%
   mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
   left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
   
-  group_by(der_activity_month, imd_decile, ethnicity_broad, type) %>% 
-  sum_spells_function(.) %>% 
-  group_by(der_activity_month, type, imd_decile, ethnicity_broad) %>% 
-  mutate(total_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  pivot_longer(cols = c(-der_activity_month, -type, -ethnicity_broad, -imd_decile)) %>% 
-  pivot_wider(id_cols = c(der_activity_month, ethnicity_broad, imd_decile, name), 
-              names_from = type,
-              values_from = value
-              ) %>% 
-  mutate(`Independent Sector` = case_when(is.na(`Independent Sector`) ~ 0, TRUE ~ `Independent Sector`)) %>% 
-  group_by(der_activity_month, ethnicity_broad, imd_decile, name) %>% 
-  mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
-  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
-                          str_detect(name, "OP") ~ "Outpatient appointments",
-                          str_detect(name, "cost") ~ "Costs",
-                          TRUE ~ "All activity")) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-11-01") %>%
-  filter(name != "All activity") %>% 
-  ungroup() %>% 
-  filter(name != "Costs") %>%
-  filter(ethnicity_broad != "Not stated_broad") %>% 
-  filter(imd_decile %in% c(1,5,10)) %>% 
-  
-  ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
-  geom_smooth(method = "loess", span = 0.3) +
-  #facet_grid(ethnicity_broad~imd_decile, scales = "free_y") +
-  facet_grid(imd_decile~ethnicity_broad, scales = "free_y") +
-  scale_color_SU() +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"), 
-        #axis.text.x = element_text(angle = 90),
-        legend.position = "bottom"
-        ) +
-  labs(x = "Month", y = "Independent sector proportion (%)",
-       colour = "",
-       title = "Independent sector proportion of activity and costs by deprivation decile",
-       subtitle = "Orthopaedic elective procedures | National | 2018-22")
-
-national_data_ophthal %>%
-  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
-  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
-  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
-  
-  group_by(der_activity_month, imd_decile, ethnicity_broad, type) %>% 
-  sum_spells_function(.) %>% 
-  group_by(der_activity_month, type, imd_decile, ethnicity_broad) %>% 
-  mutate(total_activity = sum(n_spells_IP, n_spells_OP)) %>% 
-  pivot_longer(cols = c(-der_activity_month, -type, -ethnicity_broad, -imd_decile)) %>% 
-  pivot_wider(id_cols = c(der_activity_month, ethnicity_broad, imd_decile, name), 
-              names_from = type,
-              values_from = value
-              ) %>% 
-  mutate(`Independent Sector` = case_when(is.na(`Independent Sector`) ~ 0, TRUE ~ `Independent Sector`)) %>% 
-  group_by(der_activity_month, ethnicity_broad, imd_decile, name) %>% 
-  mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
-  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
-                          str_detect(name, "OP") ~ "Outpatient appointments",
-                          str_detect(name, "cost") ~ "Costs",
-                          TRUE ~ "All activity")) %>% 
-  filter(der_activity_month > "2018-01-01" &
-           der_activity_month < "2022-11-01") %>%
-  filter(name != "All activity") %>% 
-  ungroup() %>% 
-  filter(name != "Costs") %>%
-  filter(ethnicity_broad != "Not stated_broad") %>% 
-  filter(imd_decile %in% c(1,5,10)) %>% 
-  
-  ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
-  geom_smooth(method = "loess", span = 0.3) +
-  facet_grid(ethnicity_broad~imd_decile) +
-  scale_color_SU() +
-  theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"), 
-        #axis.text.x = element_text(angle = 90),
-        legend.position = "bottom"
-        ) +
-  labs(x = "Month", y = "Independent sector proportion (%)",
-       colour = "",
-       title = "Independent sector proportion of activity and costs by deprivation decile",
-       subtitle = "Ophthalmology elective procedures | National | 2018-22")
-
-
-# Deprivation quintile 
-national_data_ophthal %>%
-  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
-  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
-  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
   group_by(der_activity_month, imd_quintile, ethnicity_broad, type) %>% 
   sum_spells_function(.) %>% 
   group_by(der_activity_month, type, imd_quintile, ethnicity_broad) %>% 
@@ -1303,24 +940,30 @@ national_data_ophthal %>%
   ungroup() %>% 
   filter(name != "Costs") %>%
   filter(ethnicity_broad != "Not stated_broad") %>% 
+  filter(is.finite(prop)) %>% 
+  
   ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
   geom_smooth(method = "loess", span = 0.3) +
-  facet_grid(imd_quintile~ethnicity_broad) +
+  facet_grid(ethnicity_broad~imd_quintile#, scales = "free"
+             ) +
   scale_color_SU() +
+  scale_y_continuous(labels = comma, oob = squish) +
   theme(strip.background = element_rect(fill = NA, colour = "grey"),
         strip.text = element_text(face = "bold"), 
+        axis.text.x = element_text(angle = 90),
         legend.position = "bottom"
         ) +
   labs(x = "Month", y = "Independent sector proportion (%)",
        colour = "",
-       title = "Independent sector proportion of activity and costs by deprivation quintile",
-       subtitle = "Ophthalmology elective procedures | National | 2018-22")
+       title = "Independent sector proportion of activity by deprivation quintile and ethnic group",
+       subtitle = "Orthopaedic elective procedures | National | 2018-22")
 
-
-national_data_ortho %>%
+# Opthal
+national_data_ophthal %>%
   mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
   mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
   left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
+  
   group_by(der_activity_month, imd_quintile, ethnicity_broad, type) %>% 
   sum_spells_function(.) %>% 
   group_by(der_activity_month, type, imd_quintile, ethnicity_broad) %>% 
@@ -1329,7 +972,7 @@ national_data_ortho %>%
   pivot_wider(id_cols = c(der_activity_month, ethnicity_broad, imd_quintile, name), 
               names_from = type,
               values_from = value
-              ) %>% 
+  ) %>% 
   mutate(`Independent Sector` = case_when(is.na(`Independent Sector`) ~ 0, TRUE ~ `Independent Sector`)) %>% 
   group_by(der_activity_month, ethnicity_broad, imd_quintile, name) %>% 
   mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
@@ -1343,33 +986,23 @@ national_data_ortho %>%
   ungroup() %>% 
   filter(name != "Costs") %>%
   filter(ethnicity_broad != "Not stated_broad") %>% 
+  
   ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
-  geom_smooth(method = "loess", span = 0.3) +
-  facet_grid(imd_quintile~ethnicity_broad) +
+  geom_smooth(method = "loess", span = 0.3, size = 0.75) +
+  facet_grid(str_wrap(ethnicity_broad,13)~imd_quintile) +
   scale_color_SU() +
   theme(strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"), 
-        legend.position = "bottom"
-  ) +
-  labs(x = "Month", y = "Independent sector proportion (%)",
+        strip.text = element_text(face = "bold", size = 8), 
+        axis.text.x = element_text(angle = 90),
+        legend.position = "bottom",
+        axis.text = element_text(size = 7),
+        axis.title.x = element_blank()
+        ) +
+  labs(#x = "", 
+       y = "Independent sector proportion (%)",
        colour = "",
-       title = "Independent sector proportion of activity and costs by deprivation quintile",
-       subtitle = "Orthopaedic elective procedures | National | 2018-22")
-
-
-
-
-
-
-national_data_ophthal %>%
-  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
-  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
-  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
-  
-  wrangle_function(., ethnicity_broad) %>% 
-  graph_function(., "Ophthalmology") +
-  facet_grid(~var_1, scales = "free_y")
-
+       title = "Independent sector proportion of activity by deprivation quintile and ethnic group",
+       subtitle = "Ophthalmology elective procedures | National | 2018-22")
 
 
 
