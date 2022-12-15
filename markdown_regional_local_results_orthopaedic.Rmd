@@ -329,11 +329,9 @@ ICB_graph_function <- function(data_input, speciality) {
 
 # Regional and Local trends: Orthopaedics
 
-## Region
+## Region {.tabset}
 
-###   {.tabset}
-
-#### Volume
+### Volume
 ```{r}
 stp_data_ortho %>% 
   wrangle_function(., nhser20nm) %>% 
@@ -358,6 +356,173 @@ stp_data_ortho %>%
 <div class = "row">
 <div class = "col-md-1">
 </div>
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+<div class = "col-md-1">
+</div>
+
+</div>
+
+### Independent sector share
+```{r}
+stp_data_ortho %>% 
+  wrangle_function(., nhser20nm) %>% 
+  filter(!is.nan(prop)) %>% 
+  graph_function(., "Orthopaedic") +
+  facet_grid(~str_wrap(var_1,15))
+```
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+### {.unlisted .unnumbered}
+
+Section desc
+
+## ICB 
+
+```{r}
+ICB_graph_function(stp_data_ortho, "Orthopaedic")
+```
+
+### ICB variation by procedure {.tabset}
+#### Elbow 
+```{r}
+ICB_graph_function(stp_data_ortho %>% 
+                     filter(procedure_desc_short == "Elbow"), 
+                   "Orthopaedic - Elbow")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+#### Hand
+```{r}
+ICB_graph_function(stp_data_ortho %>% 
+                     filter(procedure_desc_short == "Hand"), 
+                   "Orthopaedic - Hand")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+#### Foot 
+```{r}
+ICB_graph_function(stp_data_ortho %>% 
+                     filter(procedure_desc_short == "Foot"), 
+                   "Orthopaedic - Foot")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+#### Hip 
+```{r}
+ICB_graph_function(stp_data_ortho %>% 
+                     filter(procedure_desc_short == "Hip"), 
+                   "Orthopaedic - Hip")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+#### Knee 
+```{r}
+ICB_graph_function(stp_data_ortho %>% 
+                     filter(procedure_desc_short == "Knee"), 
+                   "Orthopaedic - Knee")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+#### Shoulder 
+```{r}
+ICB_graph_function(stp_data_ortho %>% 
+                     filter(procedure_desc_short == "Shoulder"), 
+                   "Orthopaedic - Shoulder")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+### {.unlisted .unnumbered}
+
+Section desc 
+
+### ICB variation by deprivation {.tabset}
+
+#### Quintile 1 
+```{r}
+ICB_graph_function(stp_data_ortho %>% 
+                     filter(imd_quintile == 1), 
+                   "Orthopaedic - IMD quintile 1")
+```
+
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
   
 <div class = "col-md-10">
 
@@ -370,15 +535,75 @@ Graph desc...
 
 </div>
 
-#### Independent sector share
+#### Quintile 2 
 ```{r}
-stp_data_ortho %>% 
-  wrangle_function(., nhser20nm) %>% 
-  filter(!is.nan(prop)) %>% 
-  graph_function(., "Orthopaedic") +
-  facet_grid(~str_wrap(var_1,15))
+ICB_graph_function(stp_data_ortho %>% 
+                     filter(imd_quintile == 2), 
+                   "Orthopaedic - IMD quintile 2")
 ```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
 
+Graph desc... 
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+#### Quintile 3 
+```{r}
+ICB_graph_function(stp_data_ortho %>% 
+                     filter(imd_quintile == 3), 
+                   "Orthopaedic - IMD quintile 3")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+#### Quintile 4 
+```{r}
+ICB_graph_function(stp_data_ortho %>% 
+                     filter(imd_quintile == 4), 
+                   "Orthopaedic - IMD quintile 4")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+#### Quintile 5 
+```{r}
+ICB_graph_function(stp_data_ortho %>% 
+                     filter(imd_quintile == 5), 
+                   "Orthopaedic - IMD quintile 5")
+```
 <div class = "row">
 <div class = "col-md-1">
 </div>
@@ -396,4 +621,4 @@ Graph desc...
 
 ### {.unlisted .unnumbered}
 
-Section desc
+

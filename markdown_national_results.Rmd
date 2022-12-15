@@ -278,7 +278,6 @@ graph_function <- function(data, subtitle_speciality ) {
 <hr style="border-top: 2px solid #f9bf07">
 # National results 
 
-
 ## Activity volume {.tabset}
 
 ### All activity 
@@ -481,6 +480,7 @@ The independent sector's market share of orthopaedic care is larger and more con
 
 In the above chart, the yellow 'All activity' line is the sum of the two care type proportions (inpatient % + outpatient % = all activity %).
 
+<hr style="border-top: 2px dashed #f9bf07">
 ## Proceudre specific trends
 
 ### Orthopaedic procedures 
@@ -799,6 +799,7 @@ national_data %>%
 
 #### {.unlisted .unnumbered}
 
+<hr style="border-top: 2px dashed #f9bf07">
 ## Demographic trends 
 
 ### Orthopaedics {.tabset}
@@ -1027,6 +1028,6 @@ national_data_ophthal %>%
        subtitle = "Ophthalmology elective procedures | National | 2018-22")
 ```
 
-<hr style="border-top: 2px dashed #f9bf07">
+<hr style="border-top: 2px solid #f9bf07">
 
 

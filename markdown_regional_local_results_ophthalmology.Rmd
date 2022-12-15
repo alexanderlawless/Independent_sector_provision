@@ -212,10 +212,6 @@ stp_data <-
   left_join(stp_region_lookup, by = c("stp21nm" = "stp20nm")) %>% 
   mutate(nhser20nm = case_when(str_detect(stp21nm, "Sussex")~ "South East", TRUE ~ nhser20nm))
 
-stp_data_ortho <-
-  stp_data %>% 
-  filter(speciality == "Orthopaedic")
-
 stp_data_ophthal <-
   stp_data %>% 
   filter(speciality == "Ophthalmology")
@@ -333,11 +329,10 @@ ICB_graph_function <- function(data_input, speciality) {
 
 # Regional and Local trends: Opthalmology
 
-## Region
+<hr style="border-top: 2px dashed #f9bf07">
+## Region {.tabset}
 
-###   {.tabset}
-
-#### Volume
+### Volume
 ```{r}
 stp_data_ophthal %>% 
   wrangle_function(., nhser20nm) %>% 
@@ -374,7 +369,7 @@ Graph desc...
 
 </div>
 
-#### Independent sector share
+### Independent sector share
 ```{r}
 stp_data_ophthal %>% 
   wrangle_function(., nhser20nm) %>% 
@@ -383,6 +378,79 @@ stp_data_ophthal %>%
   facet_grid(~str_wrap(var_1,15))
 ```
 
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+Graph desc... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+## {.unlisted .unnumbered}
+
+Section desc
+
+<hr style="border-top: 2px dashed #f9bf07">
+## ICB 
+
+```{r}
+ICB_graph_function(stp_data_ophthal, "Ophthalmology")
+```
+
+
+### ICB variation by procedure {.tabset}
+
+#### Cataract 
+```{r}
+ICB_graph_function(stp_data_ophthal %>% 
+                     filter(procedure_desc_short == "Cataract"), 
+                   "Ophthalmology - Cataract")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+#### Vitreous Retinal 
+```{r}
+ICB_graph_function(stp_data_ophthal %>% 
+                     filter(procedure_desc_short == "Vitreous Retinal"), 
+                   "Ophthalmology - Vitreous Retinal")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+#### Glaucoma 
+```{r}
+ICB_graph_function(stp_data_ophthal %>% 
+                     filter(procedure_desc_short == "Glaucoma"), 
+                   "Ophthalmology - Glaucoma")
+```
 <div class = "row">
 <div class = "col-md-1">
 </div>
@@ -400,6 +468,119 @@ Graph desc...
 
 ### {.unlisted .unnumbered}
 
-Section desc
+Section desc 
+
+### ICB variation by deprivation {.tabset}
+
+#### Quintile 1 
+```{r}
+ICB_graph_function(stp_data_ophthal %>% 
+                     filter(imd_quintile == 1), 
+                   "Ophthalmology - IMD quintile 1")
+```
+
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+#### Quintile 2 
+```{r}
+ICB_graph_function(stp_data_ophthal %>% 
+                     filter(imd_quintile == 2), 
+                   "Ophthalmology - IMD quintile 2")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+#### Quintile 3 
+```{r}
+ICB_graph_function(stp_data_ophthal %>% 
+                     filter(imd_quintile == 3), 
+                   "Ophthalmology - IMD quintile 3")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+#### Quintile 4 
+```{r}
+ICB_graph_function(stp_data_ophthal %>% 
+                     filter(imd_quintile == 4), 
+                   "Ophthalmology - IMD quintile 4")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+#### Quintile 5 
+```{r}
+ICB_graph_function(stp_data_ophthal %>% 
+                     filter(imd_quintile == 5), 
+                   "Ophthalmology - IMD quintile 5")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+Graph desc... 
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+### {.unlisted .unnumbered}
+
+Section desc 
 
 
