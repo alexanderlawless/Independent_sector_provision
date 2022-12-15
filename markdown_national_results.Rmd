@@ -1,0 +1,1032 @@
+---
+title: "Trends in provision of elective care in the independent sector"
+author: "Alexander Lawless"
+output: 
+  html_document:
+    theme: cerulean
+    toc: TRUE
+    toc_float: TRUE
+    toc_collapsed: FALSE
+    toc_depth: 4
+    number_sections: TRUE
+    code_folding: hide
+---
+
+```{r setup, include=FALSE, warnings=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warnings=FALSE, message=FALSE, fig.width =12, fig.height = 9)
+
+library(tidyverse)
+library(janitor)
+library(scales)
+library(DT)
+library(patchwork)
+
+create_dt <- function(x) {
+    
+    DT::datatable(
+        x
+        , extensions = "Buttons"
+        , options = list(
+            dom = "Blfrtip"
+            , buttons = c("copy", "csv")
+            , lengthMenu = list(
+                c(10, 25, 50, -1)
+                , c(10, 25, 50, "All"))))
+  }
+
+# Set SU theme ####
+SU_colours <- c (
+  `orange`                     = grDevices::rgb(248,191,7, maxColorValue = 255),# "#f9bf07",
+  `charcoal`                   = grDevices::rgb(44,40,37, maxColorValue = 255),# "#2c2825",
+  `slate`                      = grDevices::rgb(104,111,115, maxColorValue = 255), # "#686f73",
+  `blue`                       = grDevices::rgb(88,29,193, maxColorValue = 255), # "#5881c1",
+  `red`                        = grDevices::rgb(236,101,85, maxColorValue = 255), # "#ec6555",
+  #additional accent colours from word doc template
+  `yellow`                     = grDevices::rgb(252,229,155, maxColorValue = 255),
+  `grey`                       = grDevices::rgb(163,168,172, maxColorValue = 255),
+  `white`                      = grDevices::rgb(255,255,255, maxColorValue = 255),
+  #light and dark ends from colour theme in word doc
+  `light orange`               = grDevices::rgb(253,242,205, maxColorValue = 255),
+  `dark orange`                = grDevices::rgb(124,95,3, maxColorValue = 255),
+  `light charcoal`             = grDevices::rgb(235,233,231, maxColorValue = 255),
+  `dark charcoal`              = 	"#000000",#black
+  `light slate`                = grDevices::rgb(224,226,227, maxColorValue = 255),
+  `dark slate`                 = grDevices::rgb(51,55,57, maxColorValue = 255),
+  `light blue`                 = grDevices::rgb(221,229,242, maxColorValue = 255),
+  `dark blue`                  = grDevices::rgb(38,61,102, maxColorValue = 255),
+  `light red`                  = grDevices::rgb(251,224,220, maxColorValue = 255),
+  `dark red`                   = grDevices::rgb(144,29,16, maxColorValue = 255),
+  `light yellow`               = grDevices::rgb(254,249,235, maxColorValue = 255),
+  `dark yellow`                = grDevices::rgb(197,152,5, maxColorValue = 255),
+  `light grey`                 = grDevices::rgb(236,237,238, maxColorValue = 255),
+  `dark grey`                  = grDevices::rgb(79,84,88, maxColorValue = 255),
+  `light white`                = grDevices::rgb(242,242,242, maxColorValue = 255),
+  `dark white`                 = grDevices::rgb(127,127,127, maxColorValue = 255),
+  `red2`                       = grDevices::rgb(215,25,28, maxColorValue = 255),
+  `orange2`                    = grDevices::rgb(253,174,97, maxColorValue = 255),
+  `yellow2`                    = grDevices::rgb(255,255,191, maxColorValue = 255),
+  `green2`                     = grDevices::rgb(171,221,164, maxColorValue = 255),
+  `blue2`                      = grDevices::rgb(43,131,186, maxColorValue = 255) #"#2b83ba"
+)
+
+SU_cols <- function(...) {
+  cols <- c(...)
+  
+  if (is.null(cols))
+    return (SU_colours)
+  
+  SU_colours[cols]
+}
+
+SU_palettes <- list(
+  `main` = SU_cols("orange","charcoal","slate","blue","red"),
+  `oranges` = SU_cols("light orange","orange","dark orange"),
+  `slates` = SU_cols("light slate","slate","dark slate"),
+  `mixed` = SU_cols("dark red","orange","yellow","light blue","slate"),
+  `oj_coal` = SU_cols("yellow","orange","red","dark red","dark charcoal"),
+  `oj_red` = SU_cols("yellow","orange","red","dark red"),
+  `white_oj_coal` = SU_cols("white","yellow","orange","red","dark red","dark charcoal"),#added since shared
+  `lyellow_oj_coal` = SU_cols("light yellow","orange","red","dark red","dark charcoal"),#added since shared
+  `wy_oj_coal` = SU_cols("white","light yellow","yellow","orange","red","dark red","charcoal","dark charcoal"),
+  `red_coal` = SU_cols("red","dark red","charcoal","dark charcoal"),
+  `blue_yellow_red` = SU_cols("red2","orange2","yellow2","green2","blue2"),
+  `red_yellow_blue` = SU_cols("blue2","green2","yellow2","orange2","red2")
+)
+
+
+SU_pal <- function(palette = "main", reverse = FALSE, ...) {
+  pal <- SU_palettes[[palette]]
+  
+  if (reverse) pal <- rev(pal)
+  
+  colorRampPalette(pal, ...)
+}
+
+
+scale_color_SU <- function(palette = "main", discrete = TRUE, reverse = FALSE, ...) {
+  pal <- SU_pal(palette = palette, reverse = reverse)
+  
+  if (discrete) {
+    discrete_scale("colour", paste0("SU_", palette), palette = pal, ...)
+  } else {
+    scale_color_gradientn(colours = pal(256), ...)
+  }
+}
+
+scale_fill_SU <- function(palette = "main", discrete = TRUE, reverse = FALSE, ...) {
+  pal <- SU_pal(palette = palette, reverse = reverse)
+  
+  if (discrete) {
+    discrete_scale("fill", paste0("SU_", palette), palette = pal, ...)
+  } else {
+    scale_fill_gradientn(colours = pal(256), ...)
+  }
+}  
+
+theme_SU <-   function (base_size){
+  theme_minimal(
+    #base_family = "Segoe UI", 
+    base_size=12
+  ) %+replace% 
+    theme(axis.title = element_text(size=11, face="bold",colour=SU_cols("charcoal")),
+          plot.title = element_text(hjust=0,face="bold",size=12,colour=SU_cols("charcoal"),margin=margin(b=4,unit="pt")),
+          plot.subtitle = element_text(hjust=0,face="italic",size=10,colour=SU_cols("charcoal"),margin=margin(b=4,unit="pt")),
+          plot.caption = element_text(hjust = 0,face="italic",size=9,colour=SU_cols("slate"),margin=margin(b=4,unit="pt")),
+          legend.text = element_text(size=10,colour=SU_cols("charcoal")),
+          legend.title = element_text(face="bold",size=11,colour=SU_cols("charcoal"),margin=margin(b=4,unit="pt")))
+}
+
+theme_set(theme_SU())
+
+# Import data/ functions ----
+
+hrg_lookup <-
+  tribble(
+  ~hrg_3, ~procedure_desc, ~procedure_desc_short, ~procedure_group,
+  'BZ3', "Cataract and Lens Procedures",       "Cataract",            "Subchapter BZ – Eyes and Periorbita Procedures and Disorders",
+  'BZ4', "Oculoplastics Procedures",           "Oculoplastics",       "Subchapter BZ – Eyes and Periorbita Procedures and Disorders",
+  'BZ5', "Orbit and Lacrimal Procedures",      "Orbit and Lacrimal",  "Subchapter BZ – Eyes and Periorbita Procedures and Disorders",
+  'BZ6', "Cornea and Sclera Procedures",       "Cornea and Sclera",   "Subchapter BZ – Eyes and Periorbita Procedures and Disorders",
+  'BZ7', "Ocular Motility Procedures",         "Ocular Motility",     "Subchapter BZ – Eyes and Periorbita Procedures and Disorders",
+  'BZ8', "Vitreous Retinal Procedures",        "Vitreous Retinal",    "Subchapter BZ – Eyes and Periorbita Procedures and Disorders",
+  'BZ9', "Glaucoma Procedures",                "Glaucoma",            "Subchapter BZ – Eyes and Periorbita Procedures and Disorders",
+  
+  'HN1', "Hip Procedures for Non-Trauma",      "Hip",                 "Subchapter HN – Orthopaedic Non-Trauma Procedures",
+  'HN2', "Knee Procedures for Non-Trauma",     "Knee",                "Subchapter HN – Orthopaedic Non-Trauma Procedures",
+  'HN3', "Foot Procedures for Non-Trauma",     "Foot",                "Subchapter HN – Orthopaedic Non-Trauma Procedures",
+  'HN4', "Hand Procedures for Non-Trauma",     "Hand",                "Subchapter HN – Orthopaedic Non-Trauma Procedures",
+  'HN5', "Shoulder Procedures for Non-Trauma", "Shoulder",            "Subchapter HN – Orthopaedic Non-Trauma Procedures", 
+  'HN6', "Elbow Procedures for Non-Trauma",    "Elbow",               "Subchapter HN – Orthopaedic Non-Trauma Procedures"
+  )
+
+national_data <- 
+  read_csv("national_data.csv") %>% 
+  mutate(imd_quintile = 
+           case_when(imd_decile %in% c(1,2) ~ 1,
+                     imd_decile %in% c(3,4) ~ 2,
+                     imd_decile %in% c(5,6) ~ 3,
+                     imd_decile %in% c(7,8) ~ 4,
+                     imd_decile %in% c(9,10) ~ 5)) %>% 
+  mutate(duration_elective_wait_range = 
+           factor(duration_elective_wait_range, 
+                  levels = 
+                    c("0-50","50-100","100-150","150-200","200-250","250-300", 
+                    "300-350","350-400","400-450","450-500","500+")))
+
+national_data_ortho <- 
+  national_data %>% 
+  filter(speciality == "Orthopaedic")
+
+national_data_ophthal <- 
+  national_data %>% 
+  filter(speciality == "Ophthalmology")
+
+sum_spells_function <- function(data) {
+  
+  data %>%  
+    summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+              n_spells_OP = sum(n_spells_OP, na.rm = TRUE),
+              cost = sum(cost_IP, cost_OP, na.rm = TRUE)
+              )
+  
+}
+
+
+# National trends by procedure
+national_data_procedure <-
+  national_data %>% 
+  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE)) %>% 
+  drop_na(procedure_desc_short)
+
+
+# National trends by demographic
+age_range_order <-
+  tribble(
+    ~age_order, ~age_range,   
+    1,  "0-9",    
+    2,  "10-19",    
+    3,  "20-29",    
+    4,  "30-39",    
+    5,  "40-49",    
+    6,  "50-59",    
+    7,  "60-69",    
+    8,  "70-79",    
+    9,  "80-89",   
+    10, "90-99",    
+    11, "100+"
+    )
+
+ethnicity_lookup <- read_csv("ethnicity_lookup.csv")
+
+wrangle_function <- function(data, var_1) {
+  
+  data <- 
+    data %>% 
+    mutate(var_1 = {{var_1}})
+  
+  data %>%   
+    group_by(der_activity_month, var_1, type) %>% 
+    sum_spells_function(.) %>% 
+    group_by(der_activity_month, type, var_1) %>% 
+    mutate(total_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+    pivot_longer(cols = c(-der_activity_month, -type, -var_1)) %>% 
+    pivot_wider(id_cols = c(der_activity_month, var_1, name), 
+                names_from = type,
+                values_from = value
+                ) %>% 
+    mutate(`Independent Sector` = case_when(is.na(`Independent Sector`) ~ 0, TRUE ~ `Independent Sector`)) %>% 
+    group_by(der_activity_month, var_1, name) %>% 
+    mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
+    mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
+                            str_detect(name, "OP") ~ "Outpatient appointments",
+                            str_detect(name, "cost") ~ "Costs",
+                            TRUE ~ "All activity")) %>% 
+    filter(der_activity_month > "2018-01-01" &
+             der_activity_month < "2022-11-01") %>%
+    filter(name != "All activity") %>% 
+    ungroup() %>% 
+    filter(name != "Costs")
+}
+
+graph_function <- function(data, subtitle_speciality ) {
+  
+  data %>% 
+    ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
+    geom_smooth(method = "loess", span = 0.3) +
+    #facet_grid(imd_quintile~ethnicity_broad) +
+    scale_color_SU() +
+    scale_y_continuous(labels = comma, oob = squish) +
+    theme(strip.background = element_rect(fill = NA, colour = "grey"),
+          strip.text = element_text(face = "bold"), 
+          legend.position = "bottom",
+          axis.text.x = element_text(angle = 90),
+          axis.title.x = element_blank()
+          ) +
+    labs(y = "Independent sector proportion (%)",
+         colour = "",
+         title = "Independent sector proportion of activity",
+         subtitle = paste0(subtitle_speciality, " elective procedures | National | 2018-22")
+    )
+}
+
+
+
+```
+
+<hr style="border-top: 2px solid #f9bf07">
+# National results 
+
+
+## Activity volume {.tabset}
+
+### All activity 
+```{r}
+# Time series by speciality 
+national_data %>% 
+  group_by(der_activity_month, speciality) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE)) %>%
+  group_by(der_activity_month, speciality) %>% 
+  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  
+  ggplot(aes(x = der_activity_month, y = all_activity)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "loess", span = 0.2, colour = "#5881c1") +
+  facet_grid(~speciality, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma, oob = squish) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold")
+        ) +
+  labs(x = "", y = "Admissions",
+       title = "Trends in activity by speciality",
+       subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
+```
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+In considering the trends in all activity we include both elective inpatient and outpatient contacts and both NHS and independent sector activity. We note the comparative volumes of activity by speciality and we note the different levels of post-pandemic recovery; ophthalmic activity has returned to pre-pandemic levels where orthopaedic activity has not. 
+
+In recent months, monthly orthopaedic activity counts have remained consistent while ophthalmic activity appears to be increased since the start of 2022.
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+### By sector 
+```{r}
+# Time series by speciality and sector
+national_data %>% 
+  group_by(der_activity_month, type, speciality) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE)) %>%
+  group_by(der_activity_month, type, speciality) %>% 
+  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  
+  ggplot(aes(x = der_activity_month, y = all_activity)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "loess", span = 0.2, colour = "#5881c1") +
+  facet_grid(type~speciality, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma, oob = squish) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold")
+        ) +
+  labs(x = "", y = "Activity",
+       title = "Trends in activity by speciality and sector",
+       subtitle = "Monthly elective inpatient and outpatient activity | National | 2018-22",
+       caption = "Note: Independent sector activity consists of only NHS-funded care in the independent secetor")
+```
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+National trends in ophthalmic and orthopaedic activity show vastly different post-pandemic recoveries. Orthopaedic activity in both NHS and independent sector settings have had consistent monthly volumes from early 2018 until the onset of the pandemic and have regained that consistency post-pandemic, albeit at slightly lower monthly rates; i.e. pre-pandemic levels have not yet been achieved. 
+
+Post-pandemic ophthalmic activity is most notably changed in the independent sector, where activity has continued to grow, at a faster rate that in was before the pandemic. The rate of ophthalmic activity in NHS settings has plateaued since early 2021 at near pre-pandemic levels.
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+## {.unlisted .unnumbered}
+
+## Inc. costs {.tabset}
+
+### Orthopadeic 
+```{r}
+# Orthopaedic
+national_data %>% 
+  group_by(der_activity_month, type, speciality) %>% 
+  sum_spells_function(.) %>%  
+  pivot_longer(cols = c(-der_activity_month, -type, -speciality)) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
+                          str_detect(name, "OP") ~ "Outpatient appointments",
+                          TRUE ~ "Cost (£)")) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>% 
+  filter(speciality == "Orthopaedic") %>% 
+  
+  ggplot(aes(x = der_activity_month, y = value, colour = name, group = name)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_grid(str_wrap(name,15) ~ type, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma, oob = squish) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "none"
+        ) +
+  labs(x = "", y = "", colour = "Activity",
+       title = "Trends in activity and cost by speciality and sector: Orthopaedic",
+       subtitle = "Monthly elective activity | National | 2018-22")
+
+```
+
+### Ophthalmology 
+```{r}
+# Ophthalmology
+national_data %>% 
+  group_by(der_activity_month, type, speciality) %>% 
+  sum_spells_function(.) %>% 
+  pivot_longer(cols = c(-der_activity_month, -type, -speciality)) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
+                          str_detect(name, "OP") ~ "Outpatient appointments",
+                          TRUE ~ "Cost (£)")) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>% 
+  filter(speciality == "Ophthalmology") %>% 
+  
+  ggplot(aes(x = der_activity_month, y = value, colour = name, group = name)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_grid(str_wrap(name,15) ~ type, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma, oob = squish) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "none"
+        ) +
+  labs(x = "", y = "", colour = "Activity",
+       title = "Trends in activity and cost by speciality and sector: Ophthalmology",
+       subtitle = "Monthly elective activity | National | 2018-22")
+
+
+```
+
+## {.unlisted .unnumbered}
+
+The predominant type of ophthalmic care varies by sector; in NHS settings, more than 2 in every 3 contacts are delivered via outpatient attendances, where as care in the independent sector is most often provided in the form of inpatients admissions. These differences are likely a function of the types of procedures considered suitable to outsource from the NHS to independent providers. 
+
+## Independent sector share 
+```{r}
+national_data %>%
+  group_by(der_activity_month, type, speciality) %>% 
+  sum_spells_function(.) %>% 
+  group_by(der_activity_month, type, speciality) %>% 
+  mutate(total_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  pivot_longer(cols = c(-der_activity_month, -type, -speciality)) %>% 
+  pivot_wider(id_cols = c(der_activity_month, speciality, name), 
+              names_from = type,
+              values_from = value
+              ) %>% 
+  group_by(der_activity_month, speciality, name) %>% 
+  mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient", 
+                          str_detect(name, "OP") ~ "Outpatient",
+                          str_detect(name, "cost") ~ "Cost",
+                          TRUE ~ "All activity")) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  filter(name %in% c("Inpatient", "Outpatient")) %>% 
+  
+  ggplot(aes(x = der_activity_month, y = prop, colour = name, group = name)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~speciality#, scales = "free_y"
+             ) +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma, oob = squish) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "bottom"
+        ) +
+  labs(x = "", y = "Independent sector market share (%)", colour = "Activity type", 
+       title = "Share of activity delivered by the independent sector",
+       subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
+
+```
+
+In considering the changing independent sector market share in both ophthalmic and orthopaedic care, we can see that inpatient activity is the dominate care type. In ophthalmic care, the proportion of care delievered by the IS has grown at a steadily increasing rate through our data collection period, excluding the COVID-19; this is in contrast to the outpatient ratio, which has grown at a lesser rate. 
+
+Is it the case that the increase in the proportion of care delivered by the IS through inpatient activity is driven by cataract surgeries and the growth in the outpatient trend is a result of the increasing share of Vitreous Retinal procedures?
+
+The independent sector's market share of orthopaedic care is larger and more consistent than in ophthalmic procedures. The growth in independent sector provision is less pronounced in orthopaedic care. A large spike in inpatient independent sector activity was seen during the immediate COVID-19 pandemic recovery. Independent sector provision proportion then returned to closer to pre-pandemic levels and has been steadily growing since mid-2021.
+
+In the above chart, the yellow 'All activity' line is the sum of the two care type proportions (inpatient % + outpatient % = all activity %).
+
+## Proceudre specific trends
+
+### Orthopaedic procedures 
+
+#### Volume {.tabset}
+##### Fixed scale
+```{r}
+national_data_procedure %>%  
+  filter(speciality == "Orthopaedic") %>% 
+  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
+  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  
+  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short#, scales = "free"
+             ) +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "bottom"
+        ) +
+  labs(x = "", y = "Activity", colour = "Sector",
+       title = "Trends in Orthopaedic activity by sector and procedure",
+       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Chart text ... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+##### Free scale
+```{r}
+national_data_procedure %>%  
+  filter(speciality == "Orthopaedic") %>% 
+  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
+  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  
+  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "bottom"
+        ) +
+  labs(x = "", y = "Activity", colour = "Sector",
+       title = "Trends in Orthopaedic activity by sector and procedure",
+       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Chart text ... 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+### {.unlisted .unnumbered}
+
+The most commonly undertaken orthopaedic procedures appear to be done on hands, knees and feet. The impacts of the COVID-19 pandemic appear to have been felt equally across different procedures; all seeing significant reductions and most not fully recovering to pre-pandemic levels. Within orthopaedic care, the market share taken up by the independent sector is relatively stable; similarly, the make-up of that IS market share is not dominated by any single procedure type - the types of procedures performed by the independent sector has remained stable in the post-pandemic era.
+
+#### Independent sector share 
+```{r}
+# Orthopaedics 
+national_data %>% 
+  filter(speciality == "Orthopaedic") %>% 
+  group_by(der_activity_month, type, procedure_desc_short) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE)) %>% 
+  pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>% 
+  pivot_wider(id_cols = c(der_activity_month,  procedure_desc_short,name), 
+              names_from = type,
+              values_from = value) %>% 
+  group_by(der_activity_month, procedure_desc_short, name) %>% 
+  mutate(IS_prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`, na.rm = TRUE) * 100) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", TRUE ~ "Outpatient appointments")) %>% 
+  filter(der_activity_month > "2018-01-01" & der_activity_month < "2022-11-01") %>% 
+  drop_na(procedure_desc_short) %>% 
+  
+  ggplot(aes(x = der_activity_month, y = IS_prop, colour = name)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short#, scales = "free"
+  ) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "bottom") +
+  scale_color_SU() +
+  labs(x = "", y = "Independent sector market share (%)", colour = "Activity type", 
+       title = "Share of activity delivered by the independent sector: Orthopaedic",
+       subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
+```
+Section text ...
+
+### Opthalmic procedures 
+
+#### Volume {.tabset}
+
+##### Fixed scale
+```{r}
+national_data_procedure %>%  
+  filter(speciality == "Ophthalmology") %>% 
+  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
+  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  
+  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short#, scales = "free"
+             ) +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = c(0.7,0.1)
+        ) +
+  labs(x = "", y = "Activity", colour = "Sector",
+       title = "Trends in Ophthalmology activity by sector and procedure",
+       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
+
+```
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+If we view the trends in ophthalmic elective procedures over the last 5 years by procedure type on a fixed scale, we see Vitreous Retinal procedures are much more common than any others. Such 200,000 of these procedures are undertaken monthly at the national level. Rates were halved at the peak of the pandemic and have return to near pre-pandemic levels in recent months.
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+##### Free scale
+```{r}
+national_data_procedure %>%  
+  filter(speciality == "Ophthalmology") %>% 
+  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
+  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  
+  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = c(0.7,0.1)
+        ) +
+  labs(x = "", y = "Activity", colour = "Sector",
+       title = "Trends in Ophthalmology activity by sector and procedure",
+       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
+
+```
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+By viewing trends on variable scales, we see procedure-specific patterns more clearly. We note that Ocular Motility, Oculoplastics and Orbit and Lacrimal procedures have not returned to pre-pandmic levels and post-pandemic rates have plateaued. Rates in Cornea and Sclera procedures along with Glaucoma treatments have been trending upwards in NHS settings since early 2021. Is this a procedure type for which demand could be eased by increased provision in the independent sector?
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+##### Selected procedures 
+```{r}
+# Cataract and Vitreous Retinal procedures
+national_data_procedure %>%  
+  filter(speciality == "Ophthalmology", 
+         procedure_desc_short %in% c("Cataract", 
+                                     "Vitreous Retinal")) %>% 
+  group_by(der_activity_month, type, speciality, procedure_desc_short) %>% 
+  mutate(all_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  
+  ggplot(aes(x = der_activity_month, y = all_activity, colour = type)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = "bottom"
+        ) +
+  labs(x = "", y = "Activity", colour = "Sector",
+       title = "Trends in Ophthalmology activity by sector and procedure",
+       subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
+
+
+```
+
+<div class = "row">
+<div class = "col-md-1">
+</div>
+  
+<div class = "col-md-10">
+
+Focusing on trends in provision of Vitreous Retinal procedures and Cataract surgeries, our primary observations are that:  
+
+* The provision of NHS-funded cataract procedures in the private sector has now overtaken that in NHS settings - data has been trending towards this throughout our data collection period but has overtaken only in recent months 
+* The independent sector's market share of vitreous retinal procedures has been gradually increasing and continues to do so since the pandemic - this is significant given the sizable market that vitreous retinal procedures represents. 
+
+</div>
+
+<div class = "col-md-1">
+</div>
+
+</div>
+
+### {.unlisted .unnumbered}
+
+#### Independent sector share {.tabset}
+
+##### Fixed scale
+```{r}
+# IS proportion by speciality and activity type (IP/OP)
+# Ophthalmology
+national_data %>% 
+  filter(speciality == "Ophthalmology") %>% 
+  group_by(der_activity_month, type, procedure_desc_short) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE),
+            #all_activity = sum(n_spells_IP, n_spells_OP, na.rm = TRUE)
+            ) %>% 
+  pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>% 
+  pivot_wider(id_cols = c(der_activity_month,  procedure_desc_short,name), 
+              names_from = type,
+              values_from = value
+              ) %>% 
+  group_by(der_activity_month, procedure_desc_short, name) %>% 
+  mutate(IS_prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`, na.rm = TRUE) * 100) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", TRUE ~ "Outpatient appointments")) %>% 
+  filter(der_activity_month > "2018-01-01" & der_activity_month < "2022-11-01") %>% 
+  drop_na(procedure_desc_short) %>% 
+  filter(is.finite(IS_prop)) %>% 
+  
+  ggplot(aes(x = der_activity_month, y = IS_prop, colour = name)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short#, scales = "free"
+             ) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = c(0.75,0.2)) +
+  scale_color_SU() +
+  labs(x = "", y = "Independent sector market share (%)", colour = "Activity type", 
+       title = "Share of activity delivered by the independent sector: Ophthalmology",
+       subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
+```
+
+##### Free scale
+```{r}
+# IS proportion by speciality and activity type (IP/OP)
+# Ophthalmology
+national_data %>% 
+  filter(speciality == "Ophthalmology") %>% 
+  group_by(der_activity_month, type, procedure_desc_short) %>% 
+  summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE),
+            #all_activity = sum(n_spells_IP, n_spells_OP, na.rm = TRUE)
+            ) %>% 
+  pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>% 
+  pivot_wider(id_cols = c(der_activity_month,  procedure_desc_short,name), 
+              names_from = type,
+              values_from = value
+              ) %>% 
+  group_by(der_activity_month, procedure_desc_short, name) %>% 
+  mutate(IS_prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`, na.rm = TRUE) * 100) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", TRUE ~ "Outpatient appointments")) %>% 
+  filter(der_activity_month > "2018-01-01" & der_activity_month < "2022-11-01") %>% 
+  drop_na(procedure_desc_short) %>% 
+  filter(is.finite(IS_prop)) %>% 
+  
+  ggplot(aes(x = der_activity_month, y = IS_prop, colour = name)) +
+  geom_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~procedure_desc_short, scales = "free"
+             ) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        legend.position = c(0.75,0.2)) +
+  scale_color_SU() +
+  labs(x = "", y = "Independent sector market share (%)", colour = "Activity type", 
+       title = "Share of activity delivered by the independent sector: Ophthalmology",
+       subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
+```
+
+
+#### {.unlisted .unnumbered}
+
+## Demographic trends 
+
+### Orthopaedics {.tabset}
+
+#### Age 
+```{r}
+national_data_ortho %>% 
+  wrangle_function(., age_range) %>% 
+  filter(var_1 != "100+") %>% 
+  graph_function(., "Orthopaedic") +
+  facet_grid(~var_1, scales = "free")
+```
+
+#### Ethnicity
+```{r}
+national_data_ortho %>%
+  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
+  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
+  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
+  wrangle_function(., ethnicity_broad) %>% 
+  filter(var_1 != "Not stated_broad") %>% 
+  graph_function(., "Orthopaedic") +
+  facet_grid(~var_1, scales = "free")
+```
+
+#### Deprivation
+```{r}
+national_data_ortho %>%
+  wrangle_function(., imd_quintile) %>% 
+  graph_function(., "Orthopaedic") +
+  facet_grid(~var_1, scales = "free")
+```
+
+#### Wait time
+```{r}
+# Stacked bar chart proportions
+national_data_ortho %>% 
+  wrangle_function(., duration_elective_wait_range) %>% 
+  filter(var_1 != "500+") %>% 
+  pivot_longer(cols = c(`Independent Sector`, NHS),
+               names_to = "sector",
+               values_to = "value"
+               ) %>% 
+  mutate(year = lubridate::year(der_activity_month)) %>% 
+  group_by(year, var_1, name, sector) %>% 
+  summarise(value = sum(value)) %>% 
+  group_by(year, name, sector) %>% 
+  mutate(prop = value/sum(value)*100) %>% 
+  
+  ggplot(aes(x = year, y = prop, fill = var_1)) +
+  geom_col(position = "stack", colour = "grey", alpha = 0.9, width = 0.7) +
+  facet_grid(name~sector) +
+  scale_fill_SU() +
+  theme(#legend.position = "none",
+        strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        axis.title.x = element_blank()
+        ) +
+  labs(y = "Proportion (%)",
+       fill = "Wait duration (days)",
+       title = "Change in wait time for treatment",
+       subtitle = "Proportion of elective orthopaedic care contacts by wait time | National | 2018-22"
+       )
+```
+
+### {.unlisted .unnumbered}
+
+### Ophthalmology {.tabset}
+
+#### Age
+
+```{r}
+national_data_ophthal %>% 
+  wrangle_function(., age_range) %>% 
+  filter(var_1 != "100+") %>% 
+  graph_function(., "Ophthalmology") +
+  facet_grid(~var_1, scales = "free")
+```
+
+#### Ethnicity
+```{r}
+national_data_ophthal %>% 
+  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
+  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
+  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
+  wrangle_function(., ethnicity_broad) %>% 
+  filter(var_1 != "Not stated_broad") %>% 
+  graph_function(., "Ophthalmology") +
+  facet_grid(~var_1, scales = "free")
+```
+
+#### Deprivation
+```{r}
+national_data_ophthal %>% 
+  wrangle_function(., imd_quintile) %>% 
+  graph_function(., "Ophthalmology") +
+  facet_grid(~var_1, scales = "free")
+```
+
+#### Wait time
+```{r}
+national_data_ophthal %>% 
+  wrangle_function(., duration_elective_wait_range) %>% 
+  filter(var_1 != "500+") %>% 
+  pivot_longer(cols = c(`Independent Sector`, NHS),
+               names_to = "sector",
+               values_to = "value"
+               ) %>% 
+  mutate(year = lubridate::year(der_activity_month)) %>% 
+  group_by(year, var_1, name, sector) %>% 
+  summarise(value = sum(value)) %>% 
+  group_by(year, name, sector) %>% 
+  mutate(prop = value/sum(value)*100) %>% 
+  
+  ggplot(aes(x = year, y = prop, fill = var_1)) +
+  geom_col(position = "stack", colour = "grey", alpha = 0.9, width = 0.7) +
+  facet_grid(name~sector) +
+  scale_fill_SU() +
+  theme(#legend.position = "none",
+    strip.background = element_rect(fill = NA, colour = "grey"),
+    strip.text = element_text(face = "bold"),
+    axis.title.x = element_blank()
+    ) +
+  labs(y = "Proportion (%)",
+       fill = "Wait duration (days)",
+       title = "Change in wait time for treatment",
+       subtitle = "Proportion of elective ophthalmology care contacts by wait time | National | 2018-22"
+  )
+
+```
+
+### {.unlisted .unnumbered}
+
+We attempt to assess the impact of deprivation and ethnicity independently by using the following plots:
+```{r}
+# Ethnicity and deprivation 
+national_data_ortho %>%
+  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
+  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
+  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
+  
+  group_by(der_activity_month, imd_quintile, ethnicity_broad, type) %>% 
+  sum_spells_function(.) %>% 
+  group_by(der_activity_month, type, imd_quintile, ethnicity_broad) %>% 
+  mutate(total_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  pivot_longer(cols = c(-der_activity_month, -type, -ethnicity_broad, -imd_quintile)) %>% 
+  pivot_wider(id_cols = c(der_activity_month, ethnicity_broad, imd_quintile, name), 
+              names_from = type,
+              values_from = value
+              ) %>% 
+  mutate(`Independent Sector` = case_when(is.na(`Independent Sector`) ~ 0, TRUE ~ `Independent Sector`)) %>% 
+  group_by(der_activity_month, ethnicity_broad, imd_quintile, name) %>% 
+  mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
+                          str_detect(name, "OP") ~ "Outpatient appointments",
+                          str_detect(name, "cost") ~ "Costs",
+                          TRUE ~ "All activity")) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  filter(name != "All activity") %>% 
+  ungroup() %>% 
+  filter(name != "Costs") %>%
+  filter(ethnicity_broad != "Not stated_broad") %>% 
+  filter(is.finite(prop)) %>% 
+  
+  ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
+  geom_smooth(method = "loess", span = 0.3, size = 0.75) +
+  facet_grid(str_wrap(ethnicity_broad,13)~imd_quintile) +
+  scale_color_SU() +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold", size = 8), 
+        axis.text.x = element_text(angle = 90),
+        legend.position = "bottom",
+        axis.text = element_text(size = 7),
+        axis.title.x = element_blank()
+        ) +
+  labs(y = "Independent sector proportion (%)",
+       colour = "",
+       title = "Independent sector proportion of activity by deprivation quintile and ethnic group",
+       subtitle = "Orthopaedic elective procedures | National | 2018-22")
+```
+
+```{r}
+national_data_ophthal %>%
+  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
+  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
+  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
+  
+  group_by(der_activity_month, imd_quintile, ethnicity_broad, type) %>% 
+  sum_spells_function(.) %>% 
+  group_by(der_activity_month, type, imd_quintile, ethnicity_broad) %>% 
+  mutate(total_activity = sum(n_spells_IP, n_spells_OP)) %>% 
+  pivot_longer(cols = c(-der_activity_month, -type, -ethnicity_broad, -imd_quintile)) %>% 
+  pivot_wider(id_cols = c(der_activity_month, ethnicity_broad, imd_quintile, name), 
+              names_from = type,
+              values_from = value
+              ) %>% 
+  mutate(`Independent Sector` = case_when(is.na(`Independent Sector`) ~ 0, TRUE ~ `Independent Sector`)) %>% 
+  group_by(der_activity_month, ethnicity_broad, imd_quintile, name) %>% 
+  mutate(prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`) * 100) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
+                          str_detect(name, "OP") ~ "Outpatient appointments",
+                          str_detect(name, "cost") ~ "Costs",
+                          TRUE ~ "All activity")) %>% 
+  filter(der_activity_month > "2018-01-01" &
+           der_activity_month < "2022-11-01") %>%
+  filter(name != "All activity") %>% 
+  ungroup() %>% 
+  filter(name != "Costs") %>%
+  filter(ethnicity_broad != "Not stated_broad") %>% 
+  
+  ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
+  geom_smooth(method = "loess", span = 0.3, size = 0.75) +
+  facet_grid(str_wrap(ethnicity_broad,13)~imd_quintile) +
+  scale_color_SU() +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold", size = 8), 
+        axis.text.x = element_text(angle = 90),
+        legend.position = "bottom",
+        axis.text = element_text(size = 7),
+        axis.title.x = element_blank()
+        ) +
+  labs(y = "Independent sector proportion (%)",
+       colour = "",
+       title = "Independent sector proportion of activity by deprivation quintile and ethnic group",
+       subtitle = "Ophthalmology elective procedures | National | 2018-22")
+```
+
+<hr style="border-top: 2px dashed #f9bf07">
+
+
