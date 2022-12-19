@@ -1,5 +1,5 @@
 ---
-title: "Trends in provision of elective care in the independent sector"
+title: "Independent sector trends in provision of elective care"
 author: "Alexander Lawless"
 output: 
   html_document:
@@ -234,7 +234,7 @@ Upon publication of our findings, the underlying code will be available on [Gith
 
 <hr style="border-top: 2px solid #f9bf07">
 
-# Results
+# Next: Results
 
 National results: <https://alexanderlawless.github.io/Independent_sector_provision/markdown_national_results.html>
 
@@ -245,10 +245,4 @@ Ophthalmic Sub-national results: <https://alexanderlawless.github.io/Independent
 
 <hr style="border-top: 2px solid #f9bf07">
 
-
-
-
-# Further discussion/Questions
-
-* ...
 

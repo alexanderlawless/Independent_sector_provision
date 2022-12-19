@@ -610,6 +610,15 @@ national_data_ophthal %>%
 # Deprivation
 national_data_ortho %>%
   wrangle_function(., imd_quintile) %>% 
+  mutate(var_1 = case_when(var_1 == 1 ~ "Deprivation quintile 1",
+                           var_1 == 2 ~ "2",
+                           var_1 == 3 ~ "3",
+                           var_1 == 4 ~ "4",
+                           var_1 == 5 ~ "Deprivation quintile 5"
+                           )) %>% 
+  mutate(var_1 = factor(var_1, 
+                        levels = c("Deprivation quintile 1","2","3","4","Deprivation quintile 5")
+                        )) %>% 
   graph_function(., "Orthopaedic") +
   facet_grid(~var_1, scales = "free")
 
@@ -755,6 +764,7 @@ national_data_ophthal %>%
 
 # Ethnicity and deprivation 
 national_data_ortho %>%
+  filter(imd_quintile %in% c(1,5)) %>% 
   mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
   mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
   left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
@@ -782,9 +792,19 @@ national_data_ortho %>%
   filter(name != "Costs") %>%
   filter(ethnicity_broad != "Not stated_broad") %>% 
   filter(is.finite(prop)) %>% 
+  mutate(imd_quintile = case_when(imd_quintile == 1 ~ "Deprivation quintile 1",
+                           imd_quintile == 2 ~ "2",
+                           imd_quintile == 3 ~ "3",
+                           imd_quintile == 4 ~ "4",
+                           imd_quintile == 5 ~ "Deprivation quintile 5"
+  )) %>% 
+  mutate(imd_quintile = factor(imd_quintile, 
+                        levels = c("Deprivation quintile 1","2","3","4","Deprivation quintile 5")
+  )) %>% 
   
   ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
-  geom_smooth(method = "loess", span = 0.3) +
+  geom_smooth(method = "loess", span = 0.3, se = FALSE
+              ) +
   facet_grid(ethnicity_broad~imd_quintile#, scales = "free"
              ) +
   scale_color_SU() +

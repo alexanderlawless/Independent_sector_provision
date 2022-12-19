@@ -1,5 +1,5 @@
 ---
-title: "Trends in provision of elective care in the independent sector"
+title: "National trends in independent sector trends in provision of elective care"
 author: "Alexander Lawless"
 output: 
   html_document:
@@ -276,11 +276,9 @@ graph_function <- function(data, subtitle_speciality ) {
 ```
 
 <hr style="border-top: 2px solid #f9bf07">
-# National results 
+# Activity volume {.tabset}
 
-## Activity volume {.tabset}
-
-### All activity 
+## All activity 
 ```{r}
 # Time series by speciality 
 national_data %>% 
@@ -323,7 +321,7 @@ In recent months, monthly orthopaedic activity counts have remained consistent w
 
 </div>
 
-### By sector 
+## By sector 
 ```{r}
 # Time series by speciality and sector
 national_data %>% 
@@ -364,7 +362,7 @@ Post-pandemic ophthalmic activity is most notably changed in the independent sec
 </div>
 </div>
 
-## {.unlisted .unnumbered}
+# {.unlisted .unnumbered}
 
 ## Inc. costs {.tabset}
 
@@ -433,7 +431,9 @@ national_data %>%
 
 The predominant type of ophthalmic care varies by sector; in NHS settings, more than 2 in every 3 contacts are delivered via outpatient attendances, where as care in the independent sector is most often provided in the form of inpatients admissions. These differences are likely a function of the types of procedures considered suitable to outsource from the NHS to independent providers. 
 
-## Independent sector share 
+Activity volumes between care types are much more similar for orthopaedic care; the monthly volumes of activity in both inpatient and outpatient settings were between 30-40 thousand contacts per month before the pandemic and have reduced to near 20-30 thousand in the post-pandemic period. Provision of orthopaedic care in the independent sector has been more stable - approx. 10,000 monthly inpatient contacts before and after the pandemic. 
+
+# Independent sector share 
 ```{r}
 national_data %>%
   group_by(der_activity_month, type, speciality) %>% 
@@ -472,21 +472,20 @@ national_data %>%
 
 ```
 
-In considering the changing independent sector market share in both ophthalmic and orthopaedic care, we can see that inpatient activity is the dominate care type. In ophthalmic care, the proportion of care delievered by the IS has grown at a steadily increasing rate through our data collection period, excluding the COVID-19; this is in contrast to the outpatient ratio, which has grown at a lesser rate. 
+In considering the changing independent sector market share in both ophthalmic and orthopaedic care, we can see that inpatient activity is the dominate care type. 
 
-Is it the case that the increase in the proportion of care delivered by the IS through inpatient activity is driven by cataract surgeries and the growth in the outpatient trend is a result of the increasing share of Vitreous Retinal procedures?
+In ophthalmic care, the proportion of care delievered by the IS has grown at a steadily increasing rate through our data collection period, excluding the COVID-19; this is in contrast to the outpatient ratio, which has grown at a lesser rate. Is it the case that the increase in the proportion of care delivered by the IS through inpatient activity is driven by cataract surgeries and the growth in the outpatient trend is a result of the increasing share of Vitreous Retinal procedures?
 
 The independent sector's market share of orthopaedic care is larger and more consistent than in ophthalmic procedures. The growth in independent sector provision is less pronounced in orthopaedic care. A large spike in inpatient independent sector activity was seen during the immediate COVID-19 pandemic recovery. Independent sector provision proportion then returned to closer to pre-pandemic levels and has been steadily growing since mid-2021.
 
-In the above chart, the yellow 'All activity' line is the sum of the two care type proportions (inpatient % + outpatient % = all activity %).
 
 <hr style="border-top: 2px dashed #f9bf07">
-## Proceudre specific trends
+# Procedure specific trends
 
-### Orthopaedic procedures 
+## Orthopaedic procedures 
 
-#### Volume {.tabset}
-##### Fixed scale
+### Volume {.tabset}
+#### Fixed scale
 ```{r}
 national_data_procedure %>%  
   filter(speciality == "Orthopaedic") %>% 
@@ -510,7 +509,7 @@ national_data_procedure %>%
        subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
 ```
 
-##### Free scale
+#### Free scale
 ```{r}
 national_data_procedure %>%  
   filter(speciality == "Orthopaedic") %>% 
@@ -533,11 +532,11 @@ national_data_procedure %>%
        subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
 ```
 
-### {.unlisted .unnumbered}
+## {.unlisted .unnumbered}
 
-The most commonly undertaken orthopaedic procedures appear to be done on hands, knees and feet. The impacts of the COVID-19 pandemic appear to have been felt equally across different procedures; all seeing significant reductions and most not fully recovering to pre-pandemic levels. Within orthopaedic care, the market share taken up by the independent sector is relatively stable; similarly, the make-up of that IS market share is not dominated by any single procedure type - the types of procedures performed by the independent sector has remained stable in the post-pandemic era.
+The most commonly undertaken orthopaedic procedures appear to be those on hands, knees and feet. The impacts of the COVID-19 pandemic appear to have been felt equally across different procedures; all seeing significant reductions and most not fully recovering to pre-pandemic levels. 
 
-#### Independent sector share 
+### Independent sector share 
 ```{r}
 # Orthopaedics 
 national_data %>% 
@@ -568,16 +567,13 @@ national_data %>%
        subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
 ```
 
-The independent sector share of elective orthopaedic procedures varies by procedure group; highest for hip, knee, hand and foot procedures (20-40%) but has remained stable
+Within orthopaedic care, the independent sector market share is relatively stable; similarly, the make-up of that IS market share is not dominated by any single procedure type - the types of procedures performed by the independent sector has remained stable in the post-pandemic era.
 
+## Opthalmic procedures 
 
+### Volume {.tabset}
 
-
-### Opthalmic procedures 
-
-#### Volume {.tabset}
-
-##### Fixed scale
+#### Fixed scale
 ```{r}
 national_data_procedure %>%  
   filter(speciality == "Ophthalmology") %>% 
@@ -608,7 +604,7 @@ national_data_procedure %>%
   
 <div class = "col-md-10">
 
-If we view the trends in ophthalmic elective procedures over the last 5 years by procedure type on a fixed scale, we see Vitreous Retinal procedures are much more common than any others. Such 200,000 of these procedures are undertaken monthly at the national level. Rates were halved at the peak of the pandemic and have return to near pre-pandemic levels in recent months.
+If we view the trends in ophthalmic elective procedures over the last 5 years by procedure type on a fixed scale, we see Vitreous Retinal procedures are much more common than any others. 200,000 of these procedures are undertaken monthly at the national level. Rates were halved at the peak of the pandemic and have return to near pre-pandemic levels in recent months.
 
 </div>
 
@@ -617,7 +613,7 @@ If we view the trends in ophthalmic elective procedures over the last 5 years by
 
 </div>
 
-##### Free scale
+#### Free scale
 ```{r}
 national_data_procedure %>%  
   filter(speciality == "Ophthalmology") %>% 
@@ -656,7 +652,7 @@ By viewing trends on variable scales, we see procedure-specific patterns more cl
 
 </div>
 
-##### Selected procedures 
+#### Selected procedures 
 ```{r}
 # Cataract and Vitreous Retinal procedures
 national_data_procedure %>%  
@@ -702,11 +698,11 @@ Focusing on trends in provision of Vitreous Retinal procedures and Cataract surg
 
 </div>
 
-### {.unlisted .unnumbered}
+## {.unlisted .unnumbered}
 
-#### Independent sector share {.tabset}
+### Independent sector share {.tabset}
 
-##### Fixed scale
+#### Fixed scale
 ```{r}
 # IS proportion by speciality and activity type (IP/OP)
 # Ophthalmology
@@ -742,7 +738,7 @@ national_data %>%
        subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
 ```
 
-##### Free scale
+#### Free scale
 ```{r}
 # IS proportion by speciality and activity type (IP/OP)
 # Ophthalmology
@@ -778,15 +774,16 @@ national_data %>%
        subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
 ```
 
+### {.unlisted .unnumbered}
 
-#### {.unlisted .unnumbered}
+We note that independent sector ophthalmic care is focused on cataract procedures; the proportion of cataract procedures undertaken in the independent sector has been increasing throughout our data collection period in both inpatient and outpatient settings. Primarily, we now see that of all NHS funded cataract procedures occurring in inpatient settings, the independent sector delivers 60%. 
 
 <hr style="border-top: 2px dashed #f9bf07">
-## Demographic trends 
+# Demographic trends 
 
-### Orthopaedics {.tabset}
+## Orthopaedics {.tabset}
 
-#### Age 
+### Age 
 ```{r}
 national_data_ortho %>% 
   wrangle_function(., age_range) %>% 
@@ -794,8 +791,19 @@ national_data_ortho %>%
   graph_function(., "Orthopaedic") +
   facet_grid(~var_1, scales = "free")
 ```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
 
-#### Ethnicity
+Independent sector provision of orthopaedic care increases gradually with age, peaking in the 60-80 age groups. There is a marked increase between the 10-19 years and 20-29 years age band, suggesting paediatric orthopaedic care is not commonly delivered in the independent sector. The trends by age range are similar in inpatient and outpatient settings.
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+### Ethnicity
 ```{r}
 national_data_ortho %>%
   mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
@@ -806,52 +814,49 @@ national_data_ortho %>%
   graph_function(., "Orthopaedic") +
   facet_grid(~var_1, scales = "free")
 ```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
 
-#### Deprivation
+There is significant variation in independent sector provision when presented by broad ethnic group. White patients have been more likely to receive NHS-funded care in an independent care setting; between 1 in 4 and 1 in 5 White patients were given orthopaedic care in independent care settings, compared to 1 in 10 Black patients requiring elective orthopaedic care. Those of mixed and White ethnic background saw the largest spike in independent sector provision in immediate aftermath of the pandemic, where over 30% of procedures were performed by the independent sector. 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+### Deprivation
 ```{r}
 national_data_ortho %>%
   wrangle_function(., imd_quintile) %>% 
+  mutate(var_1 = case_when(var_1 == 1 ~ "Deprivation quintile 1",
+                           var_1 == 2 ~ "2",
+                           var_1 == 3 ~ "3",
+                           var_1 == 4 ~ "4",
+                           var_1 == 5 ~ "Deprivation quintile 5"
+                           )) %>% 
+  mutate(var_1 = factor(var_1, 
+                        levels = c("Deprivation quintile 1","2","3","4","Deprivation quintile 5")
+                        )) %>% 
   graph_function(., "Orthopaedic") +
   facet_grid(~var_1, scales = "free")
 ```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
 
+The provision of elective orthopaedic care in independent care settings increases with affluence. Approximately 25% of elective orthopaedic procedures were undertaken in the independent sector for patients from the most deprived 20% of the population (deprivation quintile 1) in the post-pandemic period; this proportion increases to 35-40% for the 20% most affluent patients (deprivation quintile 5). 
 
-### {.unlisted .unnumbered}
+At each increase in affluence, we note an increase in independent sector provision of elective orthopaedic care.
 
-### Ophthalmology {.tabset}
+</div>
+<div class = "col-md-1">
+</div>
+</div>
 
-#### Age
-```{r}
-national_data_ophthal %>% 
-  wrangle_function(., age_range) %>% 
-  filter(var_1 != "100+") %>% 
-  graph_function(., "Ophthalmology") +
-  facet_grid(~var_1, scales = "free")
-```
-
-#### Ethnicity
-```{r}
-national_data_ophthal %>% 
-  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
-  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
-  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
-  wrangle_function(., ethnicity_broad) %>% 
-  filter(var_1 != "Not stated_broad") %>% 
-  graph_function(., "Ophthalmology") +
-  facet_grid(~var_1, scales = "free")
-```
-
-#### Deprivation
-```{r}
-national_data_ophthal %>% 
-  wrangle_function(., imd_quintile) %>% 
-  graph_function(., "Ophthalmology") +
-  facet_grid(~var_1, scales = "free")
-```
-
-### {.unlisted .unnumbered}
-
-We attempt to assess the impact of deprivation and ethnicity independently by using the following plots:
+### Deprivation & Ethnicity
 ```{r}
 # Ethnicity and deprivation 
 national_data_ortho %>%
@@ -882,6 +887,15 @@ national_data_ortho %>%
   filter(name != "Costs") %>%
   filter(ethnicity_broad != "Not stated_broad") %>% 
   filter(is.finite(prop)) %>% 
+    mutate(imd_quintile = case_when(imd_quintile == 1 ~ "Deprivation quintile 1",
+                           imd_quintile == 2 ~ "2",
+                           imd_quintile == 3 ~ "3",
+                           imd_quintile == 4 ~ "4",
+                           imd_quintile == 5 ~ "Deprivation quintile 5"
+                           )) %>% 
+  mutate(imd_quintile = factor(imd_quintile, 
+                        levels = c("Deprivation quintile 1","2","3","4","Deprivation quintile 5")
+                        )) %>% 
   
   ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
   geom_smooth(method = "loess", span = 0.3, size = 0.75) +
@@ -899,7 +913,106 @@ national_data_ortho %>%
        title = "Independent sector proportion of activity by deprivation quintile and ethnic group",
        subtitle = "Orthopaedic elective procedures | National | 2018-22")
 ```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
 
+Increases in independent sector provision are seen with increases in affluence across most ethnic groups. Increases with affluence are most pronounced in the Black and Black British group where provision increased from >10% in the most deprived to approx 25% in the most affluent patients.
+
+Of the most deprived 20% of the population, White patients are most likely to receive elective orthopaedic care (15-20% post pandemic) compared to Black and Other ethnicities (>10%).
+
+IS provision has been the most stable in the White population pre- and post-pandemic across the deprivation-affluence spectrum. The impacts of the pandemic were the least disruptive in the White cohort. 
+
+Non-White patients from the most deprived 20% of the population experienced similar responsed to the pandemic in terms of elective orthopaedic care; each group saw an initial increase in IS provision of outpatient care, followed by a spike in provision of inpatient IS care - this appears to be isolated to deprivation quintile 1. 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+## {.unlisted .unnumbered}
+
+## Ophthalmology {.tabset}
+
+### Age
+```{r}
+national_data_ophthal %>% 
+  wrangle_function(., age_range) %>% 
+  filter(var_1 != "100+") %>% 
+  graph_function(., "Ophthalmology") +
+  facet_grid(~var_1, scales = "free")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Independent sector provision of ophthalmic care is focused on those ages 50+ years; this is likely a function of cataract procedures being the primary care activity delivered in the independent sector. Variation in IS provision by age is most pronounced in inpatient settings. Increases in independent sector market share are most apparent in those aged 60-90 years old.
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+### Ethnicity
+```{r}
+national_data_ophthal %>% 
+  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
+  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
+  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
+  wrangle_function(., ethnicity_broad) %>% 
+  filter(var_1 != "Not stated_broad") %>% 
+  graph_function(., "Ophthalmology") +
+  facet_grid(~var_1, scales = "free")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+Variation in the independent sector provision of ophthalmic elective care by broad ethnic group is similar to that of orthopaedic activity - access to NHS-funded care in private settings is the highest in White patients. Unlike in orthopaedic care where patients of mixed ethnicity had high independent sector provision, such patients were seen to have the lowest proportion of independent sector care for ophthalmic treatment. 
+
+The rate at which the IS market share is increasing in the post-pandemic period is similar across broad ethnicities, albeit at different levels; IS growth is even. Access to outpatient ophthalmic care in the independent sector has been similar across all broad ethnic groups.
+
+Patients of "Other" ethnic backgrounds saw the largest post-pandemic spike in activity; this occurred in inpatient and outpatient settings. Could be explained by data recording behaviours during the highest stress periods of the pandemic? Other contributing factors? 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+### Deprivation
+```{r}
+national_data_ophthal %>% 
+  wrangle_function(., imd_quintile) %>% 
+    mutate(var_1 = case_when(var_1 == 1 ~ "Deprivation quintile 1",
+                           var_1 == 2 ~ "2",
+                           var_1 == 3 ~ "3",
+                           var_1 == 4 ~ "4",
+                           var_1 == 5 ~ "Deprivation quintile 5"
+                           )) %>% 
+  mutate(var_1 = factor(var_1, 
+                        levels = c("Deprivation quintile 1","2","3","4","Deprivation quintile 5")
+                        )) %>% 
+  graph_function(., "Ophthalmology") +
+  facet_grid(~var_1, scales = "free")
+```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
+
+There is a deprivation gradient present in NHS-funded inpatient admissions for elective ophthalmic care in independent sector providers; there is approx 5-10% difference between the most deprived 20% and the most affluent 20% of the population. The magnitude of the post-pandemic increases in independent sector provision was similar across deprivation quintiles.
+
+It remains unclear whether inequities in access are a primarily a function of demographic differences in populations most served by independent sector ophthalmic sites or whether while geographic provision is equal, referral rates differ by demographic factors.  
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+### Deprivation & Ethnicity
 ```{r}
 national_data_ophthal %>%
   mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
@@ -945,10 +1058,31 @@ national_data_ophthal %>%
        title = "Independent sector proportion of activity by deprivation quintile and ethnic group",
        subtitle = "Ophthalmology elective procedures | National | 2018-22")
 ```
+<div class = "row">
+<div class = "col-md-1">
+</div>
+<div class = "col-md-10">
 
-## Wait time {.tabset}
+The shape of the trend lines appears to primarily be a function of ethnicity rather than deprivation. 
 
-### Orthopaedics
+When comparing the independent sector provision between ethnicities in the most deprived 20% of the population, the ways in which provision has changed since 2018, and the ways in which access was impacted by the pandemic, are markedly different between ethnic groups. 
+
+High IS proportions are seen in all White patients, regardless of deprivation level. It is noteworthy that the most deprived White patients have similar or higher proportions of care delivered in the independent sector than the most affluent patients from Black and Black British or Mixed ethnic backgrounds.
+
+It could be said for patients of Black and Black British, Mixed and Other ethnic groups that deprivation has almost no effect on the independent sector market share between deprivation quintiles 1 to 4; 80% of the population in those ethnic groups. 
+
+</div>
+<div class = "col-md-1">
+</div>
+</div>
+
+## {.unlisted .unnumbered}
+
+# Wait time {.tabset}
+
+The proportion of patients by the duration of their wait to be seen/treated is displayed below. Patients are presented according to the care type (inpatient or outpatient) and by the setting in which they received care (NHS or independent sector). The larger the yellow and gold bars, the lower the waiting time generally across that service type. 
+
+## Orthopaedics
 ```{r}
 # Stacked bar chart proportions
 national_data_ortho %>% 
@@ -980,7 +1114,13 @@ national_data_ortho %>%
        )
 ```
 
-### Ophthalmology
+For elective orthopaedic care over the last 5 years, lower waiting times are seen in the independent sector for inpatient admissions and in the NHS for outpatient appointments. 
+
+While waiting times for inpatient admissions have been lower in the independent sector, this appears to be changing. The proportion of patients waiting 100 days or more for an inpatient admission has been increasing since 2019; the waiting time profile for inpatient admissions in the independent sector is now very similar to NHS. 
+
+For outpatient appointments, the proportion of patients waiting less than 100 days is much higher in NHS patients compared to those treated in the independent sector. It may be that those NHS-funded patients treated in the independent sector, were offered care in the independent sector after a period of time spent waiting for treatment at an NHS site, explaining their increased waiting times. 
+
+## Ophthalmology
 ```{r}
 national_data_ophthal %>% 
   wrangle_function(., duration_elective_wait_range) %>% 
@@ -1012,7 +1152,15 @@ national_data_ophthal %>%
 
 ```
 
-## {.unlisted .unnumbered}
+The time in which patients wait for elective inpatient ophthalmic treatment is similar in those treated in NHS sites and those sent to independent sector sites. Over the last 5 years, approximately 75% inpatient admissions in NHS sites have had less that 100 days waiting times; this was the case in the independent sector up to 2019 however waiting times have been increasing for NHS-funded inpatient admissions in independent sector sites in recent years. 
+
+The waiting time for outpatient appointments has generally been lower in NHS-funded patients in the independent sector compared to those receiving appointments in NHS sites. On average, less than half the patients in NHS sites waited for 100 days or less to be seen/treated, whereas the figure is approx. 60% for independent sector sites. 
+
+# {.unlisted .unnumbered}
+
+  
+
+
 
 <hr style="border-top: 2px solid #f9bf07">
 
