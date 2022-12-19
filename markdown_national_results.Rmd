@@ -509,17 +509,6 @@ national_data_procedure %>%
        title = "Trends in Orthopaedic activity by sector and procedure",
        subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
 ```
-<div class = "row">
-<div class = "col-md-1">
-</div>
-<div class = "col-md-10">
-
-Chart text ... 
-
-</div>
-<div class = "col-md-1">
-</div>
-</div>
 
 ##### Free scale
 ```{r}
@@ -543,17 +532,6 @@ national_data_procedure %>%
        title = "Trends in Orthopaedic activity by sector and procedure",
        subtitle = "Monthly elective inpatient admissions and outpatient appointments | National | 2017-22")
 ```
-<div class = "row">
-<div class = "col-md-1">
-</div>
-<div class = "col-md-10">
-
-Chart text ... 
-
-</div>
-<div class = "col-md-1">
-</div>
-</div>
 
 ### {.unlisted .unnumbered}
 
@@ -589,7 +567,11 @@ national_data %>%
        title = "Share of activity delivered by the independent sector: Orthopaedic",
        subtitle = "Monthly elective inpatient and outpatient activity | National | 2017-22")
 ```
-Section text ...
+
+The independent sector share of elective orthopaedic procedures varies by procedure group; highest for hip, knee, hand and foot procedures (20-40%) but has remained stable
+
+
+
 
 ### Opthalmic procedures 
 
@@ -833,44 +815,12 @@ national_data_ortho %>%
   facet_grid(~var_1, scales = "free")
 ```
 
-#### Wait time
-```{r}
-# Stacked bar chart proportions
-national_data_ortho %>% 
-  wrangle_function(., duration_elective_wait_range) %>% 
-  filter(var_1 != "500+") %>% 
-  pivot_longer(cols = c(`Independent Sector`, NHS),
-               names_to = "sector",
-               values_to = "value"
-               ) %>% 
-  mutate(year = lubridate::year(der_activity_month)) %>% 
-  group_by(year, var_1, name, sector) %>% 
-  summarise(value = sum(value)) %>% 
-  group_by(year, name, sector) %>% 
-  mutate(prop = value/sum(value)*100) %>% 
-  
-  ggplot(aes(x = year, y = prop, fill = var_1)) +
-  geom_col(position = "stack", colour = "grey", alpha = 0.9, width = 0.7) +
-  facet_grid(name~sector) +
-  scale_fill_SU() +
-  theme(#legend.position = "none",
-        strip.background = element_rect(fill = NA, colour = "grey"),
-        strip.text = element_text(face = "bold"),
-        axis.title.x = element_blank()
-        ) +
-  labs(y = "Proportion (%)",
-       fill = "Wait duration (days)",
-       title = "Change in wait time for treatment",
-       subtitle = "Proportion of elective orthopaedic care contacts by wait time | National | 2018-22"
-       )
-```
 
 ### {.unlisted .unnumbered}
 
 ### Ophthalmology {.tabset}
 
 #### Age
-
 ```{r}
 national_data_ophthal %>% 
   wrangle_function(., age_range) %>% 
@@ -897,38 +847,6 @@ national_data_ophthal %>%
   wrangle_function(., imd_quintile) %>% 
   graph_function(., "Ophthalmology") +
   facet_grid(~var_1, scales = "free")
-```
-
-#### Wait time
-```{r}
-national_data_ophthal %>% 
-  wrangle_function(., duration_elective_wait_range) %>% 
-  filter(var_1 != "500+") %>% 
-  pivot_longer(cols = c(`Independent Sector`, NHS),
-               names_to = "sector",
-               values_to = "value"
-               ) %>% 
-  mutate(year = lubridate::year(der_activity_month)) %>% 
-  group_by(year, var_1, name, sector) %>% 
-  summarise(value = sum(value)) %>% 
-  group_by(year, name, sector) %>% 
-  mutate(prop = value/sum(value)*100) %>% 
-  
-  ggplot(aes(x = year, y = prop, fill = var_1)) +
-  geom_col(position = "stack", colour = "grey", alpha = 0.9, width = 0.7) +
-  facet_grid(name~sector) +
-  scale_fill_SU() +
-  theme(#legend.position = "none",
-    strip.background = element_rect(fill = NA, colour = "grey"),
-    strip.text = element_text(face = "bold"),
-    axis.title.x = element_blank()
-    ) +
-  labs(y = "Proportion (%)",
-       fill = "Wait duration (days)",
-       title = "Change in wait time for treatment",
-       subtitle = "Proportion of elective ophthalmology care contacts by wait time | National | 2018-22"
-  )
-
 ```
 
 ### {.unlisted .unnumbered}
@@ -1028,6 +946,81 @@ national_data_ophthal %>%
        subtitle = "Ophthalmology elective procedures | National | 2018-22")
 ```
 
+## Wait time {.tabset}
+
+### Orthopaedics
+```{r}
+# Stacked bar chart proportions
+national_data_ortho %>% 
+  wrangle_function(., duration_elective_wait_range) %>% 
+  filter(var_1 != "500+") %>% 
+  pivot_longer(cols = c(`Independent Sector`, NHS),
+               names_to = "sector",
+               values_to = "value"
+               ) %>% 
+  mutate(year = lubridate::year(der_activity_month)) %>% 
+  group_by(year, var_1, name, sector) %>% 
+  summarise(value = sum(value)) %>% 
+  group_by(year, name, sector) %>% 
+  mutate(prop = value/sum(value)*100) %>% 
+  
+  ggplot(aes(x = year, y = prop, fill = var_1)) +
+  geom_col(position = "stack", colour = "grey", alpha = 0.9, width = 0.7) +
+  facet_grid(name~sector) +
+  scale_fill_SU() +
+  theme(#legend.position = "none",
+        strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"),
+        axis.title.x = element_blank()
+        ) +
+  labs(y = "Proportion (%)",
+       fill = "Wait duration (days)",
+       title = "Change in wait time for treatment",
+       subtitle = "Proportion of elective orthopaedic care contacts by wait time | National | 2018-22"
+       )
+```
+
+### Ophthalmology
+```{r}
+national_data_ophthal %>% 
+  wrangle_function(., duration_elective_wait_range) %>% 
+  filter(var_1 != "500+") %>% 
+  pivot_longer(cols = c(`Independent Sector`, NHS),
+               names_to = "sector",
+               values_to = "value"
+               ) %>% 
+  mutate(year = lubridate::year(der_activity_month)) %>% 
+  group_by(year, var_1, name, sector) %>% 
+  summarise(value = sum(value)) %>% 
+  group_by(year, name, sector) %>% 
+  mutate(prop = value/sum(value)*100) %>% 
+  
+  ggplot(aes(x = year, y = prop, fill = var_1)) +
+  geom_col(position = "stack", colour = "grey", alpha = 0.9, width = 0.7) +
+  facet_grid(name~sector) +
+  scale_fill_SU() +
+  theme(#legend.position = "none",
+    strip.background = element_rect(fill = NA, colour = "grey"),
+    strip.text = element_text(face = "bold"),
+    axis.title.x = element_blank()
+    ) +
+  labs(y = "Proportion (%)",
+       fill = "Wait duration (days)",
+       title = "Change in wait time for treatment",
+       subtitle = "Proportion of elective ophthalmology care contacts by wait time | National | 2018-22"
+  )
+
+```
+
+## {.unlisted .unnumbered}
+
 <hr style="border-top: 2px solid #f9bf07">
+
+# Next: Local findings
+
+Sub-national ophthalmic results: <https://alexanderlawless.github.io/Independent_sector_provision/markdown_regional_local_results_ophthalmology.html>
+
+Sub-national orthopaedic results: <https://alexanderlawless.github.io/Independent_sector_provision/markdown_regional_local_results_orthopaedic.html>
+
 
 

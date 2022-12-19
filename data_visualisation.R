@@ -1172,7 +1172,7 @@ ICB_graph_function(stp_data_ophthal %>%
 
 
 
-stp_data_ophthal %>% 
+stp_data_ortho %>% 
   select(procedure_desc_short) %>% 
   distinct()
 
