@@ -250,28 +250,71 @@ wrangle_function <- function(data, var_1) {
     filter(name != "Costs")
 }
 
+#graph_function <- function(data, subtitle_speciality ) {
+#  
+#  data %>% 
+#    ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
+#    geom_smooth(method = "loess", span = 0.3) +
+#    #facet_grid(imd_quintile~ethnicity_broad) +
+#    scale_color_SU() +
+#    scale_y_continuous(labels = comma, oob = squish) +
+#    theme(strip.background = element_rect(fill = NA, colour = "grey"),
+#          strip.text = element_text(face = "bold"), 
+#          legend.position = "bottom",
+#          axis.text.x = element_text(angle = 90),
+#          axis.title.x = element_blank()
+#          ) +
+#    labs(y = "Independent sector proportion (%)",
+#         colour = "",
+#         title = "Independent sector proportion of activity",
+#         subtitle = paste0(subtitle_speciality, " elective procedures | National | 2018-22")
+#    )
+#}
+
 graph_function <- function(data, subtitle_speciality ) {
   
-  data %>% 
+  a <-
+    data %>% 
     ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
     geom_smooth(method = "loess", span = 0.3) +
-    #facet_grid(imd_quintile~ethnicity_broad) +
+    facet_grid(~var_1, scales = "free") +
     scale_color_SU() +
     scale_y_continuous(labels = comma, oob = squish) +
     theme(strip.background = element_rect(fill = NA, colour = "grey"),
           strip.text = element_text(face = "bold"), 
+          legend.position = "none", 
+          axis.text.x = element_blank(), 
+          axis.title.x = element_blank()
+          ) +
+    labs(x = "Month", y = "Independent sector proportion (%)",
+         colour = "",
+         title = "Independent sector proportion of activity",
+         subtitle = paste0(subtitle_speciality, " elective procedures | National | 2018-22")
+         )
+  
+  b <-
+    data %>% 
+    pivot_longer(cols = c(NHS, `Independent Sector`), names_to = "sector", values_to = "value") %>% 
+    
+    ggplot(aes(x = der_activity_month, y = value, fill = name)) +
+    geom_col() +
+    facet_grid(str_wrap(sector, 10)~var_1) +
+    scale_fill_SU() +
+    scale_y_continuous(labels = comma) +
+    theme(strip.text.x = element_blank(),
+          strip.background.y = element_rect(fill = NA, colour = "grey"),
+          strip.text.y = element_text(angle = 0), 
           legend.position = "bottom",
           axis.text.x = element_text(angle = 90),
           axis.title.x = element_blank()
           ) +
-    labs(y = "Independent sector proportion (%)",
-         colour = "",
-         title = "Independent sector proportion of activity",
-         subtitle = paste0(subtitle_speciality, " elective procedures | National | 2018-22")
-    )
-}
-
-
+    labs(y = "Activity", fill = "")
+  
+  a + b +
+    plot_layout(ncol = 1, 
+                heights = c(0.7, 0.3))
+  
+  }
 
 ```
 
@@ -788,8 +831,7 @@ We note that independent sector ophthalmic care is focused on cataract procedure
 national_data_ortho %>% 
   wrangle_function(., age_range) %>% 
   filter(var_1 != "100+") %>% 
-  graph_function(., "Orthopaedic") +
-  facet_grid(~var_1, scales = "free")
+  graph_function(., "Orthopaedic") 
 ```
 <div class = "row">
 <div class = "col-md-1">
@@ -811,8 +853,7 @@ national_data_ortho %>%
   left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
   wrangle_function(., ethnicity_broad) %>% 
   filter(var_1 != "Not stated_broad") %>% 
-  graph_function(., "Orthopaedic") +
-  facet_grid(~var_1, scales = "free")
+  graph_function(., "Orthopaedic") 
 ```
 <div class = "row">
 <div class = "col-md-1">
@@ -839,8 +880,7 @@ national_data_ortho %>%
   mutate(var_1 = factor(var_1, 
                         levels = c("Deprivation quintile 1","2","3","4","Deprivation quintile 5")
                         )) %>% 
-  graph_function(., "Orthopaedic") +
-  facet_grid(~var_1, scales = "free")
+  graph_function(., "Orthopaedic") 
 ```
 <div class = "row">
 <div class = "col-md-1">
@@ -940,8 +980,7 @@ Non-White patients from the most deprived 20% of the population experienced simi
 national_data_ophthal %>% 
   wrangle_function(., age_range) %>% 
   filter(var_1 != "100+") %>% 
-  graph_function(., "Ophthalmology") +
-  facet_grid(~var_1, scales = "free")
+  graph_function(., "Ophthalmology") 
 ```
 <div class = "row">
 <div class = "col-md-1">
@@ -963,8 +1002,7 @@ national_data_ophthal %>%
   left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
   wrangle_function(., ethnicity_broad) %>% 
   filter(var_1 != "Not stated_broad") %>% 
-  graph_function(., "Ophthalmology") +
-  facet_grid(~var_1, scales = "free")
+  graph_function(., "Ophthalmology") 
 ```
 <div class = "row">
 <div class = "col-md-1">
@@ -995,8 +1033,7 @@ national_data_ophthal %>%
   mutate(var_1 = factor(var_1, 
                         levels = c("Deprivation quintile 1","2","3","4","Deprivation quintile 5")
                         )) %>% 
-  graph_function(., "Ophthalmology") +
-  facet_grid(~var_1, scales = "free")
+  graph_function(., "Ophthalmology") 
 ```
 <div class = "row">
 <div class = "col-md-1">
