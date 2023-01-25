@@ -140,6 +140,11 @@ theme_set(theme_SU())
 
 # Import data/ functions ----
 
+# Reference 
+opcs_lookup <- 
+  read_csv("opcs_lookup.csv") %>% 
+  clean_names()
+
 hrg_lookup <-
   tribble(
   ~hrg_3, ~procedure_desc, ~procedure_desc_short, ~procedure_group,
@@ -159,6 +164,7 @@ hrg_lookup <-
   'HN6', "Elbow Procedures for Non-Trauma",    "Elbow",               "Subchapter HN – Orthopaedic Non-Trauma Procedures"
   )
 
+# Activity data
 national_data <- 
   read_csv("national_data.csv") %>% 
   mutate(imd_quintile = 
@@ -200,6 +206,244 @@ national_data_procedure <-
             n_spells_OP = sum(n_spells_OP, na.rm = TRUE)) %>% 
   drop_na(procedure_desc_short)
 
+national_data_procedure_opcs <-
+  national_data %>% 
+  group_by(der_activity_month, type, speciality, opcs_l4_desc) %>% 
+  sum_spells_function(.) %>% 
+  drop_na(opcs_l4_desc) %>% 
+  left_join(opcs_lookup %>% select(1,2,4,6), by = "opcs_l4_desc") %>% 
+  ungroup()
+
+# Most common procedures by volume and IS proportion - single year
+procedure_vol_prop_function <- function(year_filter, procedure_level, speciality_filter, setting_filter, subtitle_text) {
+  
+  data <-
+    national_data_procedure_opcs %>% 
+    mutate(procedure_level = {{procedure_level}} )
+  
+  data <-
+    data %>% 
+    filter(speciality == speciality_filter) %>% 
+    mutate(year = lubridate::year(der_activity_month)) %>% 
+    group_by(year, type, procedure_level) %>% 
+    summarise(n_spells_IP = sum(n_spells_IP),
+              n_spells_OP = sum(n_spells_OP)
+              ) %>% 
+    pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>%
+    mutate(value = case_when(is.na(value) ~ 0, TRUE ~ value)) %>% 
+    pivot_wider(id_cols = c(year, procedure_level, name), 
+                names_from = type, 
+                values_from = value) %>% 
+    rename(IS = `Independent Sector`) %>%
+    mutate(IS = case_when(is.na(IS) ~ 0, TRUE ~ IS)) %>% 
+    group_by(year, procedure_level, name) %>% 
+    mutate(IS_prop = IS/sum(IS, NHS) * 100,
+           NHS_prop = NHS/sum(IS, NHS) * 100) %>% 
+    filter(year == year_filter,
+           name == setting_filter) %>%
+    mutate(n_spells_IP_IS_NHS = sum(IS, NHS, na.rm = T)) %>% 
+    arrange(desc(n_spells_IP_IS_NHS)) %>% 
+    ungroup() %>% 
+    mutate(rn = row_number(desc(n_spells_IP_IS_NHS))) %>% 
+    filter(rn <= 20) 
+  
+  a <-
+    data %>%
+    ggplot(aes(x = n_spells_IP_IS_NHS, y = reorder(procedure_level, desc(rn)))) +
+    geom_col(fill = "#f9bf07") +
+    scale_x_continuous(labels = scales::comma) +
+    theme(axis.text.y = element_text( vjust = 0.5)) +
+    labs(x = "Admissions", y = "Primary procedure")
+  
+  b <-
+    data %>% 
+    select(1:2, 6,7,9) %>% 
+    pivot_longer(cols = c(IS_prop, NHS_prop)) %>% 
+    
+    ggplot(aes(x = value, y = reorder(procedure_level, desc(rn)), fill = name)) +
+    geom_col(position = "stack") +
+    scale_fill_manual(values = c("#5881c1", "#ec6555")) +
+    theme(axis.title.y = element_blank(),
+          axis.text.y = element_blank()) +
+    labs(x = "Proportion", fill = "")
+    
+a + b + 
+  plot_annotation(title = paste0("Volume and proportion of spells by primary procedure undertaken and setting of provision",
+                                 ": National - ", year_filter), 
+                  subtitle = subtitle_text)
+
+  }
+
+# Most common procedures by volume and sector proportion - yearly breakdown 
+procedure_vol_prop_function_annual_opcs_13 <- function(speciality_filter, activity_type, subtitle_activity_type) {
+  
+  data <-
+    national_data_procedure_opcs %>% 
+    filter(speciality == speciality_filter) %>% 
+    mutate(year = lubridate::year(der_activity_month)) %>% 
+    group_by(year, type, opcs_l3_desc) %>% 
+    summarise(n_spells_IP = sum(n_spells_IP),
+              n_spells_OP = sum(n_spells_OP)) %>% 
+    pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>%
+    mutate(value = case_when(is.na(value) ~ 0, TRUE ~ value)) %>% 
+    pivot_wider(id_cols = c(year, opcs_l3_desc, name), 
+                names_from = type, 
+                values_from = value) %>% 
+    rename(IS = `Independent Sector`) %>%
+    mutate(IS = case_when(is.na(IS) ~ 0, TRUE ~ IS)) %>% 
+    group_by(year, opcs_l3_desc, name) %>% 
+    mutate(IS_prop = IS/sum(IS, NHS) * 100,
+           NHS_prop = NHS/sum(IS, NHS) * 100) %>% 
+    filter(name == activity_type) %>%
+    mutate(n_spells_IP_IS_NHS = sum(IS, NHS, na.rm = T)) %>% 
+    arrange(desc(n_spells_IP_IS_NHS)) %>% 
+    ungroup() 
+  
+  graph_data <- 
+    data %>%
+    left_join(data %>% 
+                group_by(opcs_l3_desc) %>% 
+                summarise(n_spells_IP_IS_NHS = sum(n_spells_IP_IS_NHS)) %>% 
+                mutate(rn = row_number(desc(n_spells_IP_IS_NHS))) %>% 
+                filter(rn <= 20) %>% 
+                select(-n_spells_IP_IS_NHS),
+              by = "opcs_l3_desc") %>% 
+    select(-name, -IS, -NHS) %>% 
+    pivot_longer(cols = c(-year, -opcs_l3_desc, -rn)) %>% 
+    filter(rn <= 10) %>% 
+    mutate(facet = case_when(name %in% c("IS_prop", "NHS_prop") ~ "Sector proportion", 
+                             TRUE ~ "Volume")) 
+  
+  # Visualise volume and provision proportion
+  graph_volume <-
+    graph_data %>% 
+    filter(facet == "Volume") %>% 
+    mutate(name = "Admissions") %>% 
+    ggplot(aes(x = value, y = reorder(opcs_l3_desc, desc(rn)), fill = name)) +
+    geom_col(width = 0.6) +
+    facet_grid(facet~year) +
+    scale_x_continuous(labels = scales::comma) +
+    theme(strip.background = element_rect(fill = NA, color = "grey"),
+          strip.text = element_text(face = "bold"), 
+          axis.text.x = element_text(angle = -90),
+          axis.title = element_blank(),
+          legend.position = "bottom") +
+    scale_fill_manual(values = c("#5881c1")) +
+    labs(y = "", fill = "")
+  
+  graph_proportion <-
+    graph_data %>% 
+    filter(facet == "Sector proportion") %>%
+    mutate(name = case_when(name == "IS_prop" ~ "Independent sector", TRUE ~ "NHS")) %>% 
+    ggplot(aes(x = value, y = reorder(opcs_l3_desc, desc(rn)), fill = name)) +
+    geom_col(width = 0.6) +
+    facet_grid(facet~year) +
+    scale_x_continuous(labels = scales::comma) +
+    theme(strip.background = element_rect(fill = NA, color = "grey"),
+          strip.text = element_text(face = "bold"),
+          axis.title = element_blank(),
+          legend.position = "bottom") +
+    scale_fill_SU() +
+    labs(fill = "")
+  
+  # Patch together
+  patch <-
+    graph_volume + 
+    graph_proportion +
+    plot_layout(nrow = 2) +
+    plot_annotation(
+      title = "Activity proportion and volume by primary procedure code and sector of provider",
+      subtitle = paste0("Top 10 most common ", speciality_filter, " procedures (OPCS codes) | ", subtitle_activity_type,
+                        " | National | 2017-22."),
+    )
+  
+  patch
+}
+
+procedure_vol_prop_function_annual_opcs_14 <- function(speciality_filter, activity_type, subtitle_activity_type) {
+  
+  data <-
+    national_data_procedure_opcs %>% 
+    filter(speciality == speciality_filter) %>% 
+    mutate(year = lubridate::year(der_activity_month)) %>% 
+    group_by(year, type, opcs_l4_desc) %>% 
+    summarise(n_spells_IP = sum(n_spells_IP),
+              n_spells_OP = sum(n_spells_OP)) %>% 
+    pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>%
+    mutate(value = case_when(is.na(value) ~ 0, TRUE ~ value)) %>% 
+    pivot_wider(id_cols = c(year, opcs_l4_desc, name), 
+                names_from = type, 
+                values_from = value) %>% 
+    rename(IS = `Independent Sector`) %>%
+    mutate(IS = case_when(is.na(IS) ~ 0, TRUE ~ IS)) %>% 
+    group_by(year, opcs_l4_desc, name) %>% 
+    mutate(IS_prop = IS/sum(IS, NHS) * 100,
+           NHS_prop = NHS/sum(IS, NHS) * 100) %>% 
+    filter(name == activity_type) %>%
+    mutate(n_spells_IP_IS_NHS = sum(IS, NHS, na.rm = T)) %>% 
+    arrange(desc(n_spells_IP_IS_NHS)) %>% 
+    ungroup() 
+  
+  graph_data <- 
+    data %>%
+    left_join(data %>% 
+                group_by(opcs_l4_desc) %>% 
+                summarise(n_spells_IP_IS_NHS = sum(n_spells_IP_IS_NHS)) %>% 
+                mutate(rn = row_number(desc(n_spells_IP_IS_NHS))) %>% 
+                filter(rn <= 20) %>% 
+                select(-n_spells_IP_IS_NHS),
+              by = "opcs_l4_desc") %>% 
+    select(-name, -IS, -NHS) %>% 
+    pivot_longer(cols = c(-year, -opcs_l4_desc, -rn)) %>% 
+    filter(rn <= 10) %>% 
+    mutate(facet = case_when(name %in% c("IS_prop", "NHS_prop") ~ "Sector proportion", 
+                             TRUE ~ "Volume")) 
+  
+  # Visualise volume and provision proportion
+  graph_volume <-
+    graph_data %>% 
+    filter(facet == "Volume") %>% 
+    mutate(name = "Admissions") %>% 
+    ggplot(aes(x = value, y = reorder(opcs_l4_desc, desc(rn)), fill = name)) +
+    geom_col(width = 0.6) +
+    facet_grid(facet~year) +
+    scale_x_continuous(labels = scales::comma) +
+    theme(strip.background = element_rect(fill = NA, color = "grey"),
+          strip.text = element_text(face = "bold"), 
+          axis.text.x = element_text(angle = -90),
+          axis.title = element_blank(),
+          legend.position = "bottom") +
+    scale_fill_manual(values = c("#5881c1")) +
+    labs(y = "", fill = "")
+  
+  graph_proportion <-
+    graph_data %>% 
+    filter(facet == "Sector proportion") %>%
+    mutate(name = case_when(name == "IS_prop" ~ "Independent sector", TRUE ~ "NHS")) %>% 
+    ggplot(aes(x = value, y = reorder(opcs_l4_desc, desc(rn)), fill = name)) +
+    geom_col(width = 0.6) +
+    facet_grid(facet~year) +
+    scale_x_continuous(labels = scales::comma) +
+    theme(strip.background = element_rect(fill = NA, color = "grey"),
+          strip.text = element_text(face = "bold"),
+          axis.title = element_blank(),
+          legend.position = "bottom") +
+    scale_fill_SU() +
+    labs(fill = "")
+  
+  # Patch together
+  patch <-
+    graph_volume + 
+    graph_proportion +
+    plot_layout(nrow = 2) +
+    plot_annotation(
+      title = "Activity proportion and volume by primary procedure code and sector of provider",
+      subtitle = paste0("Top 10 most common ", speciality_filter, " procedures (OPCS codes) | ", subtitle_activity_type,
+                        " | National | 2017-22."),
+    )
+  
+  patch
+}
 
 # National trends by demographic
 age_range_order <-
@@ -845,6 +1089,79 @@ national_data %>%
 
 We note that independent sector ophthalmic care is focused on cataract procedures; the proportion of cataract procedures undertaken in the independent sector has been increasing throughout our data collection period in both inpatient and outpatient settings. Primarily, we now see that of all NHS funded cataract procedures occurring in inpatient settings, the independent sector delivers 60%. 
 
+## OPCS Procedure codes
+
+### Orthopaedic {.tabset}
+
+#### OPCS 13
+Inpatient admissions:
+```{r}
+procedure_vol_prop_function_annual_opcs_13("Orthopaedic", "n_spells_IP", "Inpatient activity")
+```
+
+Outpatient appointments:
+```{r}
+procedure_vol_prop_function_annual_opcs_13("Orthopaedic", "n_spells_OP", "Outpatient activity")
+```
+
+#### OPCS 14
+Inpatient admissions:
+```{r}
+procedure_vol_prop_function_annual_opcs_14("Orthopaedic", "n_spells_IP", "Inpatient activity")
+```
+
+Outpatient appointments:
+```{r}
+procedure_vol_prop_function_annual_opcs_14("Orthopaedic", "n_spells_OP", "Outpatient activity")
+```
+
+
+#### Single year
+```{r}
+procedure_vol_prop_function(2021, opcs_l3_desc, "Orthopaedic", "n_spells_IP", "Inpatient orthopaedic procedures - Level: OPCS 13")
+procedure_vol_prop_function(2021, opcs_l3_desc, "Orthopaedic", "n_spells_OP", "Outpatient orthopaedic procedures - Level: OPCS 13")
+
+procedure_vol_prop_function(2021, opcs_l4_desc, "Orthopaedic", "n_spells_IP", "Inpatient orthopaedic procedures - Level: OPCS 14")
+procedure_vol_prop_function(2021, opcs_l4_desc, "Orthopaedic", "n_spells_OP", "Outpatient orthopaedic procedures - Level: OPCS 14")
+```
+
+### {.unlisted .unnumbered} 
+
+### Ophthalmology {.tabset}
+
+#### OPCS 13
+Inpatient admissions:
+```{r}
+procedure_vol_prop_function_annual_opcs_13("Ophthalmology", "n_spells_IP", "Inpatient activity")
+```
+
+Outpatient appointments:
+```{r}
+procedure_vol_prop_function_annual_opcs_13("Ophthalmology", "n_spells_OP", "Outpatient activity")
+```
+
+#### OPCS 14
+Inpatient admissions:
+```{r}
+procedure_vol_prop_function_annual_opcs_14("Ophthalmology", "n_spells_IP", "Inpatient activity")
+```
+
+Outpatient appointments:
+```{r}
+procedure_vol_prop_function_annual_opcs_14("Ophthalmology", "n_spells_OP", "Outpatient activity")
+```
+
+#### Single year
+```{r}
+procedure_vol_prop_function(2021, opcs_l3_desc, "Ophthalmology", "n_spells_IP", "Inpatient ophthalmic procedures - Level: OPCS 13")
+procedure_vol_prop_function(2021, opcs_l3_desc, "Ophthalmology", "n_spells_OP", "Outpatient ophthalmic procedures - Level: OPCS 13")
+
+procedure_vol_prop_function(2021, opcs_l4_desc, "Ophthalmology", "n_spells_IP", "Inpatient ophthalmic procedures - Level: OPCS 14")
+procedure_vol_prop_function(2021, opcs_l4_desc, "Ophthalmology", "n_spells_OP", "Outpatient ophthalmic procedures - Level: OPCS 14")
+```
+
+### {.unlisted .unnumbered} 
+
 <hr style="border-top: 2px dashed #f9bf07">
 # Demographic trends 
 
@@ -860,7 +1177,7 @@ We note that independent sector ophthalmic care is focused on cataract procedure
 
 ```{r}
 national_data_ortho %>% 
-  wrangle_function(., age_range) %>% 
+  wrangle_function(., age_range_broad) %>% 
   filter(var_1 != "100+") %>% 
   pivot_longer(cols = c(NHS, `Independent Sector`), names_to = "sector", values_to = "value") %>% 
   graph_function_2(., "Orthopaedic") 
@@ -891,9 +1208,9 @@ Independent sector provision of orthopaedic care increases gradually with age, p
 
 ```{r}
 national_data_ortho %>%
-  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
-  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
-  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
+  #mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
+  #mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
+  #left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
   wrangle_function(., ethnicity_broad) %>% 
   filter(var_1 != "Not stated_broad") %>% 
   pivot_longer(cols = c(NHS, `Independent Sector`), names_to = "sector", values_to = "value") %>% 
@@ -961,9 +1278,9 @@ At each increase in affluence, we note an increase in independent sector provisi
 ```{r}
 # Ethnicity and deprivation 
 national_data_ortho %>%
-  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
-  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
-  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
+  #mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
+  #mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
+  #left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
   
   group_by(der_activity_month, imd_quintile, ethnicity_broad, type) %>% 
   sum_spells_function(.) %>% 
@@ -1046,7 +1363,7 @@ Non-White patients from the most deprived 20% of the population experienced simi
 
 ```{r}
 national_data_ophthal %>% 
-  wrangle_function(., age_range) %>% 
+  wrangle_function(., age_range_broad) %>% 
   filter(var_1 != "100+") %>% 
   pivot_longer(cols = c(NHS, `Independent Sector`), names_to = "sector", values_to = "value") %>% 
   graph_function_2(., "Ophthalmology") 
@@ -1076,9 +1393,9 @@ Independent sector provision of ophthalmic care is focused on those ages 50+ yea
 
 ```{r}
 national_data_ophthal %>% 
-  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
-  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
-  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
+  #mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
+  #mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
+  #left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
   wrangle_function(., ethnicity_broad) %>% 
   filter(var_1 != "Not stated_broad") %>% 
   pivot_longer(cols = c(NHS, `Independent Sector`), names_to = "sector", values_to = "value") %>%
@@ -1148,9 +1465,9 @@ It remains unclear whether inequities in access are a primarily a function of de
 ### Deprivation & Ethnicity
 ```{r}
 national_data_ophthal %>%
-  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
-  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
-  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
+  #mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
+  #mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
+  #left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
   
   group_by(der_activity_month, imd_quintile, ethnicity_broad, type) %>% 
   sum_spells_function(.) %>% 

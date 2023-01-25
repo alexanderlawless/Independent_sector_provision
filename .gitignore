@@ -4,3 +4,10 @@
 .Ruserdata
 grouped_data_IP.csv
 grouped_data_OP.csv
+grouped_data_IP_incl_procedure.csv
+grouped_data_OP_incl_procedure.csv
+national_data_ophthal_aggregated_suppressed.csv
+national_data_ortho_aggregated_suppressed.csv
+national_data_aggregated_suppressed.zip
+national_data.csv
+stp_data.csv

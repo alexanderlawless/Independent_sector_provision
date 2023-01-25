@@ -6,27 +6,37 @@ library(janitor)
 # Data preparation 
 
 # Import data ----
+# Reference
 lsoa11_stp21 <- 
   read_csv("LSOA(2011)_CCG(21)_STP(21).csv") %>% 
   clean_names()
 
+opcs_lookup <- 
+  read_csv("opcs_lookup.csv") %>% 
+  clean_names()
+
+ethnicity_lookup <- read_csv("ethnicity_lookup.csv")
+
+# Activity data
 inpatient_data <- 
-  read_csv("grouped_data_IP.csv") %>% 
+  read_csv("grouped_data_IP_incl_procedure.csv") %>% 
+  #read_csv("grouped_data_IP.csv") %>% 
   clean_names() %>% 
   left_join(lsoa11_stp21 %>% 
               select(lsoa11cd,stp21nm, lad21nm), 
             by = c("der_postcode_lsoa_2011_code" = "lsoa11cd")) %>% 
   mutate(sum_costs = as.numeric(sum_cost))
 
-outpatient_data <- 
-  read_csv("grouped_data_OP.csv") %>% 
+outpatient_data <-
+  read_csv("grouped_data_OP_incl_procedure.csv") %>% 
+  # read_csv("grouped_data_OP.csv") %>%
   clean_names() %>% 
   left_join(lsoa11_stp21 %>% 
               select(lsoa11cd,stp21nm, lad21nm), 
             by = c("der_postcode_lsoa_2011_code" = "lsoa11cd")) %>% 
   rename(ethnic_group = ethnic_category) %>% 
   mutate(sum_costs = as.numeric(sum_costs))
-# Group and clean ----
+
 hrg_lookup <-
   tribble(
     ~hrg_3, ~procedure_desc, ~procedure_desc_short, ~procedure_group,
@@ -49,12 +59,31 @@ hrg_lookup <-
 #hrg_lookup_full_22_23 <- 
 #  read_csv("HRG_22_23_lookup.csv") %>% 
 #  clean_names()
-
+  
+# Group and clean ----
 
 inpatient_grouped <-
   inpatient_data %>% 
-  group_by(der_activity_month, age_range, sex, ethnic_group, imd_decile,
-           der_provider_site_code, duration_elective_wait_range, hrg_3, provider_type_1, stp21nm, lad21nm) %>% 
+  # reduce n. rows by broadening age range and ethnicity
+  mutate(age_range_broad = 
+           case_when(
+             age_range %in% c("0-9", "10-19") ~ "0-19",
+             age_range %in% c("20-29", "30-39") ~ "20-39",
+             age_range %in% c("40-49", "50-59") ~ "40-59",
+             age_range %in% c("60-69", "70-79") ~ "60-79",
+             age_range %in% c("80-89", "90-99") ~ "80-99",
+             age_range %in% c("100+") ~ "100+"
+           )) %>% 
+  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
+  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
+  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
+  left_join(opcs_lookup %>% 
+              select(1:2),
+            by = c("der_primary_procedure_code" = "opcs_l4_code")) %>%
+  # group and sum
+  group_by(der_activity_month, age_range_broad, sex, ethnicity_broad, imd_decile,
+           der_provider_site_code, duration_elective_wait_range, hrg_3, 
+           der_primary_procedure_code, opcs_l4_desc, provider_type_1, stp21nm, lad21nm) %>% 
   summarise(n_spells = sum(spell_count),
             n_individuals = sum(individual_count),
             sum_cost = sum(sum_costs)
@@ -63,42 +92,34 @@ inpatient_grouped <-
   mutate(speciality = case_when(str_sub(hrg_3,1,1) == "H" ~ "Orthopaedic",
                                 str_sub(hrg_3,1,1) == "B" ~ "Ophthalmology")) %>% 
   drop_na(speciality) %>% 
-  mutate(type = case_when(provider_type_1 %in% c("Acute", 
-                                                 "Health & Care",
-                                                 "Mental Health") ~ "NHS",
-                          provider_type_1 %in% c("Independent Sector",
-                                                 "Non NHS")~ "Independent Sector")) %>% 
+  mutate(type = case_when(provider_type_1 %in% c("Acute", "Health & Care","Mental Health") ~ "NHS",
+                          provider_type_1 %in% c("Independent Sector","Non NHS")~ "Independent Sector")) %>% 
   drop_na(type) %>% 
-  mutate(der_activity_month = 
-           as.Date(
-             paste0(str_sub(der_activity_month,1,4),
-                    "-",
-                    str_sub(der_activity_month,5,6),
-                    "-01"
-                    )
-             )
-         ) %>% 
+  mutate(der_activity_month = as.Date(paste0(str_sub(der_activity_month,1,4),"-",str_sub(der_activity_month,5,6),"-01"))) %>% 
   left_join(hrg_lookup, by = "hrg_3")
 
-## Check exclusions/deletions
-#inpatient_data %>% 
-#  group_by(provider_type_1) %>% 
-#  summarise(spell_count = sum(spell_count)) %>% 
-#  arrange(desc(spell_count)) %>% 
-#  mutate(prop = spell_count/sum(spell_count)*100)
-#
-#inpatient_data %>% 
-#  mutate(speciality = case_when(str_sub(hrg_3,1,1) == "H" ~ "Orthopaedic",
-#                              str_sub(hrg_3,1,1) == "B" ~ "Ophthalmology")) %>% 
-#  group_by(speciality) %>% 
-#  summarise(spell_count = sum(spell_count)) %>% 
-#  arrange(desc(spell_count)) %>% 
-#  mutate(prop = spell_count/sum(spell_count)*100)
 
 outpatient_grouped <-
   outpatient_data %>% 
-  group_by(der_activity_month, age_range, sex, ethnic_group, imd_decile,
-           der_provider_site_code, appointment_wait_range, hrg_3, provider_type_1, stp21nm, lad21nm) %>% 
+  # reduce n. rows by broadening age range and ethnicity
+  mutate(age_range_broad = 
+           case_when(
+             age_range %in% c("0-9", "10-19") ~ "0-19",
+             age_range %in% c("20-29", "30-39") ~ "20-39",
+             age_range %in% c("40-49", "50-59") ~ "40-59",
+             age_range %in% c("60-69", "70-79") ~ "60-79",
+             age_range %in% c("80-89", "90-99") ~ "80-99",
+             age_range %in% c("100+") ~ "100+"
+           )) %>% 
+  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
+  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
+  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
+  left_join(opcs_lookup %>% 
+              select(1:2),
+            by = c("primary_procedure_code" = "opcs_l4_code")) %>% 
+  group_by(der_activity_month, age_range_broad, sex, ethnicity_broad, imd_decile,
+           der_provider_site_code, appointment_wait_range, hrg_3, 
+           primary_procedure_code, opcs_l4_desc, provider_type_1, stp21nm, lad21nm) %>%
   summarise(n_spells = sum(attendence_count),
             n_individuals = sum(individual_count),
             sum_cost = sum(sum_costs)
@@ -107,27 +128,18 @@ outpatient_grouped <-
   mutate(speciality = case_when(str_sub(hrg_3,1,1) == "H" ~ "Orthopaedic",
                                 str_sub(hrg_3,1,1) == "B" ~ "Ophthalmology")) %>% 
   drop_na(speciality) %>% 
-  mutate(type = case_when(provider_type_1 %in% c("Acute", 
-                                                 "Health & Care",
-                                                 "Mental Health") ~ "NHS",
-                          provider_type_1 %in% c("Independent Sector",
-                                                 "Non NHS")~ "Independent Sector")) %>% 
+  mutate(type = case_when(provider_type_1 %in% c("Acute", "Health & Care","Mental Health") ~ "NHS",
+                          provider_type_1 %in% c("Independent Sector","Non NHS")~ "Independent Sector")) %>% 
   drop_na(type) %>% 
-  mutate(der_activity_month = 
-           as.Date(
-             paste0(str_sub(der_activity_month,1,4),
-                    "-",
-                    str_sub(der_activity_month,5,6),
-                    "-01")
-             )
-         ) %>% 
+  mutate(der_activity_month = as.Date(paste0(str_sub(der_activity_month,1,4),"-",str_sub(der_activity_month,5,6),"-01"))) %>% 
   left_join(hrg_lookup, by = "hrg_3")
+
 
 # Write national data file ----
 national_data_IP <-
   inpatient_grouped %>% 
-  group_by(der_activity_month, age_range, sex, ethnic_group, imd_decile,
-           duration_elective_wait_range, procedure_desc_short, type, speciality
+  group_by(der_activity_month, age_range_broad, sex, ethnicity_broad, imd_decile,
+           duration_elective_wait_range, procedure_desc_short, opcs_l4_desc ,type, speciality
            ) %>% 
   summarise(n_spells_IP = sum(n_spells),
             cost_IP = sum(sum_cost)) %>% 
@@ -135,8 +147,8 @@ national_data_IP <-
 
 national_data_OP <-
   outpatient_grouped %>% 
-  group_by(der_activity_month, age_range, sex, ethnic_group, imd_decile,
-           appointment_wait_range, procedure_desc_short, type, speciality
+  group_by(der_activity_month, age_range_broad, sex, ethnicity_broad, imd_decile,
+           appointment_wait_range, procedure_desc_short, opcs_l4_desc, type, speciality
            ) %>% 
   summarise(n_spells_OP = sum(n_spells),
             cost_OP = sum(sum_cost)) %>% 
@@ -146,21 +158,28 @@ national_data <-
   national_data_IP %>%  # 1,973,563
   full_join(national_data_OP, 
             by = c("der_activity_month",
-                   "age_range",
+                   "age_range_broad",
                    "sex",
-                   "ethnic_group",
+                   "ethnicity_broad",
                    "imd_decile",
                    "duration_elective_wait_range" = "appointment_wait_range",
                    "procedure_desc_short",
+                   "opcs_l4_desc",
                    "type",
                    "speciality"
                    ))
 
 rm(national_data_IP,
-   national_data_OP)
+   national_data_OP
+   )
 
 write_csv(national_data, "national_data.csv")
 
+rm(inpatient_data,
+   inpatient_grouped,
+   outpatient_data,
+   outpatient_grouped
+   )
 
 # Write local file (STP? ICB?) ----
 stp_data_IP <-
