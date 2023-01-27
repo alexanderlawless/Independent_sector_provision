@@ -29,10 +29,11 @@ create_dt <- function(x) {
         , options = list(
             dom = "Blfrtip"
             , buttons = c("copy", "csv")
+            , pageLength = 5
             , lengthMenu = list(
-                c(10, 25, 50, -1)
-                , c(10, 25, 50, "All"))))
-}
+                c(5, 10, 25, 50, -1)
+                , c(5, 10, 25, 50, "All"))))
+  }
 
 # Set SU theme ####
 SU_colours <- c (
@@ -184,27 +185,174 @@ wrangle_function <- function(data, var_1) {
     filter(name != "Costs")
 }
 
-
 graph_function <- function(data, subtitle_speciality ) {
   
-  data %>% 
+  a <-
+    data %>% 
     ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
     geom_smooth(method = "loess", span = 0.3) +
-    #facet_grid(imd_quintile~ethnicity_broad) +
+    facet_grid(~var_1, scales = "free") +
     scale_color_SU() +
     scale_y_continuous(labels = comma, oob = squish) +
     theme(strip.background = element_rect(fill = NA, colour = "grey"),
           strip.text = element_text(face = "bold"), 
+          legend.position = "none", 
+          axis.text.x = element_blank(), 
+          axis.title.x = element_blank()
+          ) +
+    labs(x = "Month", y = "Independent sector proportion (%)",
+         colour = "",
+         title = "Independent sector proportion of activity",
+         subtitle = paste0(subtitle_speciality, " elective procedures | National | 2018-22")
+         )
+  
+  b <-
+    data %>% 
+    pivot_longer(cols = c(NHS, `Independent Sector`), names_to = "sector", values_to = "value") %>% 
+    
+    ggplot(aes(x = der_activity_month, y = value, fill = name)) +
+    geom_col() +
+    facet_grid(str_wrap(sector, 10)~var_1) +
+    scale_fill_SU() +
+    scale_y_continuous(labels = comma) +
+    theme(strip.text.x = element_blank(),
+          strip.background.y = element_rect(fill = NA, colour = "grey"),
+          strip.text.y = element_text(angle = 0), 
           legend.position = "bottom",
           axis.text.x = element_text(angle = 90),
           axis.title.x = element_blank()
           ) +
-    labs(y = "Independent sector proportion (%)",
+    labs(y = "Activity", fill = "")
+  
+  a + b +
+    plot_layout(ncol = 1, 
+                heights = c(0.7, 0.3))
+  
+}
+
+graph_function_2 <- function(data, subtitle_speciality ) {
+  
+a <-
+  data %>% 
+  ggplot(aes(x = der_activity_month, y = prop, colour = name)) +
+  geom_smooth(method = "loess", span = 0.3) +
+  facet_grid(~var_1, scales = "free") +
+  scale_color_SU() +
+  scale_y_continuous(labels = comma, oob = squish) +
+  theme(strip.background = element_rect(fill = NA, colour = "grey"),
+        strip.text = element_text(face = "bold"), 
+        #legend.position = "none", 
+        legend.position = "bottom", 
+        axis.text.x = element_blank(), 
+        axis.title.x = element_blank()
+  ) +
+  labs(x = "Month", y = "Independent sector proportion (%)",
+       colour = "",
+       title = "Independent sector proportion of activity",
+       subtitle = paste0(subtitle_speciality, " elective procedures | 2018-22")
+  )
+
+b <-
+  data %>% 
+  ggplot(aes(x = der_activity_month, y = value, fill = sector)) +
+  geom_col() +
+  facet_grid(str_wrap(name, 10)~var_1) +
+  scale_fill_SU() +
+  scale_y_continuous(labels = comma) +
+  theme(strip.text.x = element_blank(),
+        strip.background.y = element_rect(fill = NA, colour = "grey"),
+        strip.text.y = element_text(angle = 0), 
+        legend.position = "bottom",
+        axis.text.x = element_text(angle = 90),
+        axis.title.x = element_blank()
+  ) +
+  labs(y = "Activity", fill = "")
+
+a + b +
+  plot_layout(ncol = 1, 
+              heights = c(0.7, 0.3))
+  
+}
+
+wrangle_england_reference <- function(data){
+  # Input: grouped data having ran wrangle_function
+  
+  # Function calculates England average
+  
+  data %>% 
+    filter(!is.nan(prop)) %>% 
+    left_join(data %>% 
+                filter(!is.nan(prop)) %>% 
+                group_by(der_activity_month, name) %>% 
+                summarise(england_IS = sum(`Independent Sector`),
+                          england_NHS = sum(NHS)) %>% 
+                group_by(der_activity_month, name) %>% 
+                mutate(england_IS_prop = england_IS/sum(england_IS, england_NHS)*100) %>% 
+                ungroup(),
+              by = c("der_activity_month", "name")
+    ) %>% 
+    pivot_longer(cols = c(NHS, `Independent Sector`), names_to = "sector", values_to = "value") 
+  
+}
+
+graph_function_england_ref <- function( data, subtitle_speciality) {
+  
+  a <-
+    data %>% 
+    select(1:4, 7) %>% 
+    rename(type = name) %>% 
+    distinct() %>% 
+    pivot_longer(cols = c(prop, england_IS_prop)) %>% 
+    mutate(legend = case_when(type == "Inpatient admissions" & name               == "prop" ~ "Inpatient Admissions",
+                              type == "Inpatient admissions" & name    == "england_IS_prop" ~ "England: Inpatient Admissions",
+                              type == "Outpatient appointments" & name            == "prop" ~ "Outpatient appointments",
+                              type == "Outpatient appointments" & name == "england_IS_prop" ~ "England: Outpatient appointments"
+    )) %>% 
+    mutate(legend = factor(legend, levels = c("Inpatient Admissions",
+                                              "England: Inpatient Admissions",
+                                              "Outpatient appointments",
+                                              "England: Outpatient appointments"))) %>% 
+    mutate(size_desc = case_when(str_detect(legend, "England:") ~ "small", TRUE ~ "large")) %>% 
+    
+    ggplot(aes(x = der_activity_month, y = value , colour = legend, size = size_desc)) +
+    geom_smooth(method = "loess", span = 0.3, se = F) +
+    facet_grid(~var_1, scales = "free") +
+    scale_color_SU() +
+    scale_y_continuous(labels = comma, oob = squish) +
+    scale_size_manual(values = c(1.5, 0.5)) +
+    theme(strip.background = element_rect(fill = NA, colour = "grey"),
+          strip.text = element_text(face = "bold"), 
+          #legend.position = "none", 
+          legend.position = "bottom", 
+          axis.text.x = element_blank(), 
+          axis.title.x = element_blank()
+    ) +
+    guides(size = "none") +
+    labs(x = "Month", y = "Independent sector proportion (%)",
          colour = "",
          title = "Independent sector proportion of activity",
-         subtitle = paste0(subtitle_speciality, " elective procedures | National | 2018-22")
     )
-}
+  
+  b <-
+    data %>% 
+    ggplot(aes(x = der_activity_month, y = value, fill = sector)) +
+    geom_col() +
+    facet_grid(str_wrap(name, 10)~var_1) +
+    scale_fill_SU() +
+    scale_y_continuous(labels = comma) +
+    theme(strip.text.x = element_blank(),
+          strip.background.y = element_rect(fill = NA, colour = "grey"),
+          strip.text.y = element_text(angle = 0), 
+          legend.position = "bottom",
+          axis.text.x = element_text(angle = 90),
+          axis.title.x = element_blank()
+    ) +
+    labs(y = "Activity", fill = "")
+  
+  a + b +
+    plot_layout(ncol = 1, 
+                heights = c(0.7, 0.3))
+  }
 
 # Data
 stp_data <- 
@@ -354,6 +502,17 @@ stp_data_ophthal %>%
        subtitle = "Monthly elective activity counts | NHSE region | 2018-22")
 ```
 
+```{r}
+create_dt(
+  stp_data_ophthal %>% 
+  wrangle_function(., nhser20nm) %>% 
+  filter(!is.nan(prop)) %>% 
+  pivot_longer(cols = c(`Independent Sector`, NHS),
+               names_to = "sector")
+)
+```
+
+
 <div class = "row">
 <div class = "col-md-1">
 </div>
@@ -370,13 +529,22 @@ Graph desc...
 </div>
 
 ### Independent sector share
+
 ```{r}
 stp_data_ophthal %>% 
   wrangle_function(., nhser20nm) %>% 
-  filter(!is.nan(prop)) %>% 
-  graph_function(., "Ophthalmology") +
-  facet_grid(~str_wrap(var_1,15))
+  wrangle_england_reference(.) %>%  
+  graph_function_england_ref(.)
 ```
+
+```{r}
+create_dt(
+  stp_data_ophthal %>% 
+  wrangle_function(., nhser20nm) %>% 
+  wrangle_england_reference(.)
+)
+```
+
 
 <div class = "row">
 <div class = "col-md-1">

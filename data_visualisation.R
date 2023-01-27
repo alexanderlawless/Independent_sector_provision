@@ -151,7 +151,7 @@ sum_spells_function <- function(data) {
 }
 
 
-## Visualise national data ----
+# Visualise national data ----
 # Time series by speciality 
 national_data %>% 
   group_by(der_activity_month, speciality) %>% 
@@ -463,16 +463,19 @@ national_data_ophthal %>%
   group_by(der_activity_month, type, procedure_desc_short) %>% 
   summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
             n_spells_OP = sum(n_spells_OP, na.rm = TRUE),
-            #all_activity = sum(n_spells_IP, n_spells_OP, na.rm = TRUE)
-            ) %>% 
-  pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>% 
+            all_activity = sum(n_spells_IP, n_spells_OP, na.rm = TRUE)) %>% 
+  pivot_longer(cols = c(n_spells_IP, n_spells_OP, all_activity)) %>% 
   pivot_wider(id_cols = c(der_activity_month,  procedure_desc_short,name), 
               names_from = type,
-              values_from = value
-              ) %>% 
+              values_from = value) %>% 
   group_by(der_activity_month, procedure_desc_short, name) %>% 
   mutate(IS_prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`, na.rm = TRUE) * 100) %>% 
-  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", TRUE ~ "Outpatient appointments")) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
+                          str_detect(name, "OP") ~ "Outpatient appointments", 
+                          TRUE ~ "All activity (IP & OP)")) %>% 
+  mutate(name = factor(name, levels = c("Inpatient admissions",
+                                        "All activity (IP & OP)",
+                                        "Outpatient appointments"))) %>% 
   filter(der_activity_month > "2018-01-01" & der_activity_month < "2022-11-01") %>% 
   drop_na(procedure_desc_short) %>% 
   
@@ -492,14 +495,21 @@ national_data_ophthal %>%
 national_data_ortho %>% 
   group_by(der_activity_month, type, procedure_desc_short) %>% 
   summarise(n_spells_IP = sum(n_spells_IP, na.rm = TRUE),
-            n_spells_OP = sum(n_spells_OP, na.rm = TRUE)) %>% 
-  pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>% 
+            n_spells_OP = sum(n_spells_OP, na.rm = TRUE),
+            all_activity = sum(n_spells_IP, n_spells_OP, na.rm = TRUE)) %>% 
+  pivot_longer(cols = c(n_spells_IP, n_spells_OP, all_activity)) %>% 
   pivot_wider(id_cols = c(der_activity_month,  procedure_desc_short,name), 
               names_from = type,
               values_from = value) %>% 
   group_by(der_activity_month, procedure_desc_short, name) %>% 
   mutate(IS_prop = `Independent Sector`/ sum(`Independent Sector`, `NHS`, na.rm = TRUE) * 100) %>% 
-  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", TRUE ~ "Outpatient appointments")) %>% 
+  mutate(name = case_when(str_detect(name, "IP") ~ "Inpatient admissions", 
+                          str_detect(name, "OP") ~ "Outpatient appointments", 
+                          TRUE ~ "All activity (IP & OP)")) %>% 
+  mutate(name = factor(name, levels = c("Inpatient admissions",
+                                        "All activity (IP & OP)",
+                                        "Outpatient appointments"
+                                        ))) %>% 
   filter(der_activity_month > "2018-01-01" & der_activity_month < "2022-11-01") %>% 
   drop_na(procedure_desc_short) %>% 
   
@@ -517,33 +527,9 @@ national_data_ortho %>%
 
 
 
-# Trends by OPCS code 
+# National trends by OPCS code ----
 
-# Ophthalmology
-national_data_procedure_opcs %>% 
-  filter(speciality == "Ophthalmology") %>% 
-  group_by(opcs_l3_desc) %>% 
-  summarise(n_spells_IP = sum(n_spells_IP),
-            n_spells_OP = sum(n_spells_OP)
-            ) %>% 
-  group_by(opcs_l3_desc) %>% 
-  mutate(total_spells = sum(n_spells_IP, n_spells_OP)) %>% 
-  arrange(desc(total_spells))
-
-national_data_procedure_opcs %>% 
-  filter(speciality == "Ophthalmology") %>% 
-  group_by(opcs_l4_desc) %>% 
-  summarise(n_spells_IP = sum(n_spells_IP),
-            n_spells_OP = sum(n_spells_OP)
-            ) %>% 
-  group_by(opcs_l4_desc) %>% 
-  mutate(total_spells = sum(n_spells_IP, n_spells_OP)) %>% 
-  arrange(desc(total_spells))
-
-
-############## pick up here --------------
-
-# Most common inpatient procedures by IS proportion
+## Most common procedures by volume and IS proportion - single year
 
 procedure_vol_prop_function <- function(year_filter, procedure_level, speciality_filter, setting_filter, subtitle_text) {
   
@@ -604,67 +590,19 @@ a + b +
 
   }
 
-procedure_vol_prop_function(2021, opcs_l3_desc, "Ophthalmology", "n_spells_IP", "Inpatient ophthalmic procedures - Level: OPCS 13")
-procedure_vol_prop_function(2021, opcs_l3_desc, "Ophthalmology", "n_spells_OP", "Outpatient ophthalmic procedures - Level: OPCS 13")
-procedure_vol_prop_function(2021, opcs_l3_desc, "Orthopaedic", "n_spells_IP", "Inpatient orthopaedic procedures - Level: OPCS 13")
-procedure_vol_prop_function(2021, opcs_l3_desc, "Orthopaedic", "n_spells_OP", "Outpatient orthopaedic procedures - Level: OPCS 13")
+procedure_vol_prop_function(2021, opcs_l3_desc, "Ophthalmology", "n_spells_IP", "Inpatient ophthalmic procedures - Level: OPCS 3")
+procedure_vol_prop_function(2021, opcs_l3_desc, "Ophthalmology", "n_spells_OP", "Outpatient ophthalmic procedures - Level: OPCS 3")
+procedure_vol_prop_function(2021, opcs_l3_desc, "Orthopaedic", "n_spells_IP", "Inpatient orthopaedic procedures - Level: OPCS 3")
+procedure_vol_prop_function(2021, opcs_l3_desc, "Orthopaedic", "n_spells_OP", "Outpatient orthopaedic procedures - Level: OPCS 3")
 
-procedure_vol_prop_function(2021, opcs_l4_desc, "Ophthalmology", "n_spells_IP", "Inpatient ophthalmic procedures - Level: OPCS 14")
-procedure_vol_prop_function(2021, opcs_l4_desc, "Ophthalmology", "n_spells_OP", "Outpatient ophthalmic procedures - Level: OPCS 14")
-procedure_vol_prop_function(2021, opcs_l4_desc, "Orthopaedic", "n_spells_IP", "Inpatient orthopaedic procedures - Level: OPCS 14")
-procedure_vol_prop_function(2021, opcs_l4_desc, "Orthopaedic", "n_spells_OP", "Outpatient orthopaedic procedures - Level: OPCS 14")
+procedure_vol_prop_function(2021, opcs_l4_desc, "Ophthalmology", "n_spells_IP", "Inpatient ophthalmic procedures - Level: OPCS 4")
+procedure_vol_prop_function(2021, opcs_l4_desc, "Ophthalmology", "n_spells_OP", "Outpatient ophthalmic procedures - Level: OPCS 4")
+procedure_vol_prop_function(2021, opcs_l4_desc, "Orthopaedic", "n_spells_IP", "Inpatient orthopaedic procedures - Level: OPCS 4")
+procedure_vol_prop_function(2021, opcs_l4_desc, "Orthopaedic", "n_spells_OP", "Outpatient orthopaedic procedures - Level: OPCS 4")
 
 
 
-# Orthopaedic - inpatient admissions 
-test_data <-
-  national_data_procedure_opcs %>% 
-  filter(speciality == "Ophthalmology") %>% 
-  mutate(year = lubridate::year(der_activity_month)) %>% 
-  group_by(year, type, opcs_l3_desc) %>% 
-  summarise(n_spells_IP = sum(n_spells_IP),
-            n_spells_OP = sum(n_spells_OP)) %>% 
-  pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>%
-  mutate(value = case_when(is.na(value) ~ 0, TRUE ~ value)) %>% 
-  pivot_wider(id_cols = c(year, opcs_l3_desc, name), 
-              names_from = type, 
-              values_from = value) %>% 
-  rename(IS = `Independent Sector`) %>%
-  mutate(IS = case_when(is.na(IS) ~ 0, TRUE ~ IS)) %>% 
-  group_by(year, opcs_l3_desc, name) %>% 
-  mutate(IS_prop = IS/sum(IS, NHS) * 100,
-         NHS_prop = NHS/sum(IS, NHS) * 100) %>% 
-  filter(name == "n_spells_IP") %>%
-  mutate(n_spells_IP_IS_NHS = sum(IS, NHS, na.rm = T)) %>% 
-  arrange(desc(n_spells_IP_IS_NHS)) %>% 
-  ungroup() 
-
-test_graph_data <- 
-  test_data %>%
-  left_join(test_data %>% 
-              group_by(opcs_l3_desc) %>% 
-              summarise(n_spells_IP_IS_NHS = sum(n_spells_IP_IS_NHS)) %>% 
-              mutate(rn = row_number(desc(n_spells_IP_IS_NHS))) %>% 
-              filter(rn <= 20) %>% 
-              select(-n_spells_IP_IS_NHS),
-            by = "opcs_l3_desc") %>% 
-  select(-name, -IS, -NHS) %>% 
-  pivot_longer(cols = c(-year, -opcs_l3_desc, -rn)) %>% 
-  filter(rn <= 10) %>% 
-  mutate(facet = case_when(name %in% c("IS_prop", "NHS_prop") ~ "Sector proportion", 
-                           TRUE ~ "Volume")) 
-
-# Option 1
-test_graph_data %>% 
-  ggplot(aes(x = value, y = reorder(opcs_l3_desc, desc(rn)), fill = name)) +
-  geom_col() +
-  facet_grid(year~facet, scales = "free_x") +
-  scale_x_continuous(labels = scales::comma) +
-  theme(strip.background = element_rect(fill = NA, color = "grey"),
-        strip.text = element_text(face = "bold")) +
-  scale_fill_SU()
-  
-
+## Most common procedures by volume and sector proportion - yearly breakdown 
 
 procedure_vol_prop_function_annual_opcs_13 <- function(speciality_filter, activity_type, subtitle_activity_type) {
   
@@ -704,14 +642,14 @@ procedure_vol_prop_function_annual_opcs_13 <- function(speciality_filter, activi
     filter(rn <= 10) %>% 
     mutate(facet = case_when(name %in% c("IS_prop", "NHS_prop") ~ "Sector proportion", 
                              TRUE ~ "Volume")) 
-
+  
   # Visualise volume and provision proportion
   graph_volume <-
     graph_data %>% 
     filter(facet == "Volume") %>% 
-    mutate(name = "Admissions") %>% 
+    mutate(name = "Admissions/Attendences") %>% 
     ggplot(aes(x = value, y = reorder(opcs_l3_desc, desc(rn)), fill = name)) +
-    geom_col() +
+    geom_col(width = 0.4) +
     facet_grid(facet~year) +
     scale_x_continuous(labels = scales::comma) +
     theme(strip.background = element_rect(fill = NA, color = "grey"),
@@ -727,7 +665,7 @@ procedure_vol_prop_function_annual_opcs_13 <- function(speciality_filter, activi
     filter(facet == "Sector proportion") %>%
     mutate(name = case_when(name == "IS_prop" ~ "Independent sector", TRUE ~ "NHS")) %>% 
     ggplot(aes(x = value, y = reorder(opcs_l3_desc, desc(rn)), fill = name)) +
-    geom_col() +
+    geom_col(width = 0.4) +
     facet_grid(facet~year) +
     scale_x_continuous(labels = scales::comma) +
     theme(strip.background = element_rect(fill = NA, color = "grey"),
@@ -746,15 +684,13 @@ procedure_vol_prop_function_annual_opcs_13 <- function(speciality_filter, activi
       title = "Activity proportion and volume by primary procedure code and sector of provider",
       subtitle = paste0("Top 10 most common ", speciality_filter, " procedures (OPCS codes) | ", subtitle_activity_type,
                         " | National | 2017-22."),
-      )
+    )
   
   patch
-  }
-
+}
 
 procedure_vol_prop_function_annual_opcs_13("Orthopaedic", "n_spells_IP", "Inpatient activity")
 procedure_vol_prop_function_annual_opcs_13("Orthopaedic", "n_spells_OP", "Outpatient activity")
-
 procedure_vol_prop_function_annual_opcs_13("Ophthalmology", "n_spells_IP", "Inpatient activity")
 procedure_vol_prop_function_annual_opcs_13("Ophthalmology", "n_spells_OP", "Outpatient activity")
 
@@ -845,26 +781,97 @@ procedure_vol_prop_function_annual_opcs_14 <- function(speciality_filter, activi
 
 procedure_vol_prop_function_annual_opcs_14("Orthopaedic", "n_spells_IP", "Inpatient activity")
 procedure_vol_prop_function_annual_opcs_14("Orthopaedic", "n_spells_OP", "Outpatient activity")
-
 procedure_vol_prop_function_annual_opcs_14("Ophthalmology", "n_spells_IP", "Inpatient activity")
 procedure_vol_prop_function_annual_opcs_14("Ophthalmology", "n_spells_OP", "Outpatient activity")
 
 
-# Option 3 - line graph 
-
-test_graph_data %>% 
-  filter(rn <= 10) %>% 
-  filter(name != "NHS_prop") %>% 
+# Wrangle functions for DT
+procedure_vol_prop_wrangle_opcs_l3 <- function(speciality_filter, activity_type) {
+  data <-
+    national_data_procedure_opcs %>% 
+    filter(speciality == speciality_filter) %>% 
+    mutate(year = lubridate::year(der_activity_month)) %>% 
+    group_by(year, type, opcs_l3_desc) %>% 
+    summarise(n_spells_IP = sum(n_spells_IP),
+              n_spells_OP = sum(n_spells_OP)) %>% 
+    pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>%
+    mutate(value = case_when(is.na(value) ~ 0, TRUE ~ value)) %>% 
+    pivot_wider(id_cols = c(year, opcs_l3_desc, name), 
+                names_from = type, 
+                values_from = value) %>% 
+    rename(IS = `Independent Sector`) %>%
+    mutate(IS = case_when(is.na(IS) ~ 0, TRUE ~ IS)) %>% 
+    group_by(year, opcs_l3_desc, name) %>% 
+    mutate(IS_prop = IS/sum(IS, NHS) * 100,
+           NHS_prop = NHS/sum(IS, NHS) * 100) %>% 
+    filter(name == activity_type) %>%
+    mutate(n_spells_IP_IS_NHS = sum(IS, NHS, na.rm = T)) %>% 
+    arrange(desc(n_spells_IP_IS_NHS)) %>% 
+    ungroup() 
   
-  ggplot(aes(x = year, y = value, colour = opcs_l3_desc )) +
-  geom_smooth(method = "loess") +
-  facet_wrap(~name, scales = "free")
+  graph_data <- 
+    data %>%
+    left_join(data %>% 
+                group_by(opcs_l3_desc) %>% 
+                summarise(n_spells_IP_IS_NHS = sum(n_spells_IP_IS_NHS)) %>% 
+                mutate(rn = row_number(desc(n_spells_IP_IS_NHS))) %>% 
+                filter(rn <= 20) %>% 
+                select(-n_spells_IP_IS_NHS),
+              by = "opcs_l3_desc") %>% 
+    select(-name, -IS, -NHS) %>% 
+    pivot_longer(cols = c(-year, -opcs_l3_desc, -rn)) %>% 
+    filter(rn <= 10) %>% 
+    mutate(facet = case_when(name %in% c("IS_prop", "NHS_prop") ~ "Sector proportion", 
+                             TRUE ~ "Volume"))
+  
+  graph_data
+} 
+
+procedure_vol_prop_wrangle_opcs_l4 <- function(speciality_filter, activity_type) {
+  data <-
+    national_data_procedure_opcs %>% 
+    filter(speciality == speciality_filter) %>% 
+    mutate(year = lubridate::year(der_activity_month)) %>% 
+    group_by(year, type, opcs_l4_desc) %>% 
+    summarise(n_spells_IP = sum(n_spells_IP),
+              n_spells_OP = sum(n_spells_OP)) %>% 
+    pivot_longer(cols = c(n_spells_IP, n_spells_OP)) %>%
+    mutate(value = case_when(is.na(value) ~ 0, TRUE ~ value)) %>% 
+    pivot_wider(id_cols = c(year, opcs_l4_desc, name), 
+                names_from = type, 
+                values_from = value) %>% 
+    rename(IS = `Independent Sector`) %>%
+    mutate(IS = case_when(is.na(IS) ~ 0, TRUE ~ IS)) %>% 
+    group_by(year, opcs_l4_desc, name) %>% 
+    mutate(IS_prop = IS/sum(IS, NHS) * 100,
+           NHS_prop = NHS/sum(IS, NHS) * 100) %>% 
+    filter(name == activity_type) %>%
+    mutate(n_spells_IP_IS_NHS = sum(IS, NHS, na.rm = T)) %>% 
+    arrange(desc(n_spells_IP_IS_NHS)) %>% 
+    ungroup() 
+  
+  graph_data <- 
+    data %>%
+    left_join(data %>% 
+                group_by(opcs_l4_desc) %>% 
+                summarise(n_spells_IP_IS_NHS = sum(n_spells_IP_IS_NHS)) %>% 
+                mutate(rn = row_number(desc(n_spells_IP_IS_NHS))) %>% 
+                filter(rn <= 20) %>% 
+                select(-n_spells_IP_IS_NHS),
+              by = "opcs_l4_desc") %>% 
+    select(-name, -IS, -NHS) %>% 
+    pivot_longer(cols = c(-year, -opcs_l4_desc, -rn)) %>% 
+    filter(rn <= 10) %>% 
+    mutate(facet = case_when(name %in% c("IS_prop", "NHS_prop") ~ "Sector proportion", 
+                             TRUE ~ "Volume"))
+  
+  graph_data
+} 
 
 
+# National data by demographics ---- 
 
-
-## National data by demographics ---- 
-
+## Functions ----
 wrangle_function <- function(data, var_1) {
   
   data <- 
@@ -959,7 +966,7 @@ a <-
   labs(x = "Month", y = "Independent sector proportion (%)",
        colour = "",
        title = "Independent sector proportion of activity",
-       #subtitle = paste0(subtitle_speciality, " elective procedures | National | 2018-22")
+       subtitle = paste0(subtitle_speciality, " elective procedures | 2018-22")
   )
 
 b <-
@@ -985,6 +992,7 @@ a + b +
 }
 
 
+## Plots ----
 # Age range
 age_range_order <-
   tribble(
@@ -1003,12 +1011,12 @@ age_range_order <-
     )
 
 national_data_ortho %>% 
-  wrangle_function(., age_range) %>% 
+  wrangle_function(., age_range_broad) %>% 
   filter(var_1 != "100+") %>% 
   graph_function(., "Orthopaedic") 
 
 national_data_ophthal %>% 
-  wrangle_function(., age_range) %>% 
+  wrangle_function(., age_range_broad) %>% 
   filter(var_1 != "100+") %>% 
   graph_function(., "Ophthalmology") 
 
@@ -1016,17 +1024,11 @@ national_data_ophthal %>%
 ethnicity_lookup <- read_csv("ethnicity_lookup.csv")
 
 national_data_ortho %>%
-  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
-  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
-  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
   wrangle_function(., ethnicity_broad) %>% 
   filter(var_1 != "Not stated_broad") %>% 
   graph_function(., "Orthopaedic") 
 
 national_data_ophthal %>% 
-  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
-  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
-  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
   wrangle_function(., ethnicity_broad) %>% 
   filter(var_1 != "Not stated_broad") %>% 
   graph_function(., "Ophthalmology") 
@@ -1203,9 +1205,9 @@ national_data_ophthal %>%
 # Ethnicity and deprivation 
 national_data_ortho %>%
   filter(imd_quintile %in% c(1,5)) %>% 
-  mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
-  mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
-  left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
+  #mutate(ethnic_group = case_when(ethnic_group %in% c("NULL", "99") ~ "Z", TRUE ~ ethnic_group)) %>% 
+  #mutate(ethnic_group = str_sub(ethnic_group, 1,1)) %>% 
+  #left_join(ethnicity_lookup, by = c("ethnic_group" = "Code")) %>% 
   
   group_by(der_activity_month, imd_quintile, ethnicity_broad, type) %>% 
   sum_spells_function(.) %>% 
@@ -1326,20 +1328,128 @@ stp_data_ophthal <-
   stp_data %>% 
   filter(speciality == "Ophthalmology")
 
-
 # Region
 # IS share
 stp_data_ortho %>% 
   wrangle_function(., nhser20nm) %>% 
   filter(!is.nan(prop)) %>% 
-  graph_function(., "Orthopaedic") +
-  facet_grid(~str_wrap(var_1,15))
+  graph_function(., "Orthopaedic") 
+
+stp_data_ortho %>% 
+  wrangle_function(., nhser20nm) %>% 
+  filter(!is.nan(prop)) %>% 
+  pivot_longer(cols = c(NHS, `Independent Sector`), names_to = "sector", values_to = "value") %>% 
+  graph_function_2(., "Orthopaedic")
+
 
 stp_data_ophthal %>% 
   wrangle_function(., nhser20nm) %>% 
   filter(!is.nan(prop)) %>% 
-  graph_function(., "Ophthalmology") +
-  facet_grid(~str_wrap(var_1,30))
+  graph_function(., "Ophthalmology")
+
+stp_data_ophthal %>% 
+  wrangle_function(., nhser20nm) %>% 
+  filter(!is.nan(prop)) %>% 
+  pivot_longer(cols = c(NHS, `Independent Sector`), names_to = "sector", values_to = "value") %>% 
+  graph_function_2(., "Ophthalmology") 
+
+
+# Add England reference line or reference facet 
+# England average - prop from summed spells by sector, or average regional proportion?
+
+wrangle_england_reference <- function(data){
+  # Input: grouped data having ran wrangle_function
+  
+  # Function calculates England average
+  
+  data %>% 
+    filter(!is.nan(prop)) %>% 
+    left_join(data %>% 
+                filter(!is.nan(prop)) %>% 
+                group_by(der_activity_month, name) %>% 
+                summarise(england_IS = sum(`Independent Sector`),
+                          england_NHS = sum(NHS)) %>% 
+                group_by(der_activity_month, name) %>% 
+                mutate(england_IS_prop = england_IS/sum(england_IS, england_NHS)*100) %>% 
+                ungroup(),
+              by = c("der_activity_month", "name")
+    ) %>% 
+    pivot_longer(cols = c(NHS, `Independent Sector`), names_to = "sector", values_to = "value") 
+  
+}
+
+graph_function_england_ref <- function( data, subtitle_speciality) {
+  
+  a <-
+    data %>% 
+    select(1:4, 7) %>% 
+    rename(type = name) %>% 
+    distinct() %>% 
+    pivot_longer(cols = c(prop, england_IS_prop)) %>% 
+    mutate(legend = case_when(type == "Inpatient admissions" & name               == "prop" ~ "Inpatient Admissions",
+                              type == "Inpatient admissions" & name    == "england_IS_prop" ~ "England: Inpatient Admissions",
+                              type == "Outpatient appointments" & name            == "prop" ~ "Outpatient appointments",
+                              type == "Outpatient appointments" & name == "england_IS_prop" ~ "England: Outpatient appointments"
+    )) %>% 
+    mutate(legend = factor(legend, levels = c("Inpatient Admissions",
+                                              "England: Inpatient Admissions",
+                                              "Outpatient appointments",
+                                              "England: Outpatient appointments"))) %>% 
+    mutate(size_desc = case_when(str_detect(legend, "England:") ~ "small", TRUE ~ "large")) %>% 
+    
+    ggplot(aes(x = der_activity_month, y = value , colour = legend, size = size_desc)) +
+    geom_smooth(method = "loess", span = 0.3, se = F) +
+    facet_grid(~var_1, scales = "free") +
+    scale_color_SU() +
+    scale_y_continuous(labels = comma, oob = squish) +
+    scale_size_manual(values = c(1.5, 0.5)) +
+    theme(strip.background = element_rect(fill = NA, colour = "grey"),
+          strip.text = element_text(face = "bold"), 
+          #legend.position = "none", 
+          legend.position = "bottom", 
+          axis.text.x = element_blank(), 
+          axis.title.x = element_blank()
+    ) +
+    guides(size = "none") +
+    labs(x = "Month", y = "Independent sector proportion (%)",
+         colour = "",
+         title = "Independent sector proportion of activity",
+    )
+  
+  b <-
+    data %>% 
+    ggplot(aes(x = der_activity_month, y = value, fill = sector)) +
+    geom_col() +
+    facet_grid(str_wrap(name, 10)~var_1) +
+    scale_fill_SU() +
+    scale_y_continuous(labels = comma) +
+    theme(strip.text.x = element_blank(),
+          strip.background.y = element_rect(fill = NA, colour = "grey"),
+          strip.text.y = element_text(angle = 0), 
+          legend.position = "bottom",
+          axis.text.x = element_text(angle = 90),
+          axis.title.x = element_blank()
+    ) +
+    labs(y = "Activity", fill = "")
+  
+  a + b +
+    plot_layout(ncol = 1, 
+                heights = c(0.7, 0.3))
+  
+  
+  
+}
+
+stp_data_ophthal %>% 
+  wrangle_function(., nhser20nm) %>% 
+  wrangle_england_reference(.) %>%  
+  graph_function_england_ref(.)
+
+stp_data_ortho %>% 
+  wrangle_function(., nhser20nm) %>% 
+  wrangle_england_reference(.) %>%  
+  graph_function_england_ref(.)
+
 
 # Volume
 stp_data_ortho %>% 
@@ -1382,7 +1492,6 @@ stp_data_ophthal %>%
 
 
 # STP 
-
 stp_name_short_lookup <-
   tribble(
   ~stp_name, ~stp_name_short,
@@ -1432,10 +1541,6 @@ stp_name_short_lookup <-
   )
 
 
-
-
-
-
 ## Facet grid/wraps
 stp_data_ophthal %>% 
   wrangle_function(., stp21nm) %>% 
@@ -1459,8 +1564,7 @@ stp_data_ortho %>%
   wrangle_function(., stp21nm) %>% 
   pivot_longer(cols = c(`Independent Sector`, NHS),
                names_to = "sector",
-               values_to = "value"
-  ) %>% 
+               values_to = "value"  ) %>% 
   mutate(year = lubridate::year(der_activity_month)) %>% 
   group_by(year, var_1, name, sector) %>% 
   summarise(value = sum(value)) %>% 
